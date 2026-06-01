@@ -1,0 +1,97 @@
+{
+  "expo": {
+    "name": "Enliten AI",
+    "slug": "enliten-ai",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "enliten-ai",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "notification": {
+      "icon": "./assets/images/ic_stat_1770713431802.png"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.enliten.ai.android",
+      "buildNumber": "1",
+      "icon": "./assets/images/icon.png",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "usesAppleSignIn": false,
+      "infoPlist": {
+        "CFBundleDisplayName": "Enliten AI",
+        "LSApplicationQueriesSchemes": [
+          "itms-apps"
+        ]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#00000000"
+      },
+      "package": "com.enliten.ai.android",
+      "versionCode": 1,
+      "targetSdkVersion": 35,
+      "permissions": [
+        "com.android.vending.BILLING"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "androidGradlePluginVersion": "8.3.2",
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0",
+            "ndkVersion": "27.1.12297006",
+            "extraGradleProperties": {
+              "android.bundle.enableUncompressedNativeLibs": "false",
+              "org.gradle.jvmargs": "-Xmx4g -XX:MaxMetaspaceSize=1g"
+            },
+            "packagingOptions": {
+              "jniLibs": {
+                "useLegacyPackaging": false
+              }
+            }
+          }
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/1767338091772.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#000100",
+          "ios": {
+            "image": "./assets/images/1767338091772.png",
+            "resizeMode": "contain",
+            "backgroundColor": "#000100"
+          }
+        }
+      ],
+      "expo-font",
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "bf26ddc7-d89f-42f0-ba01-0e700590121a"
+      }
+    },
+    "owner": "gokul_04"
+  }
+}

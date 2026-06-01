@@ -1,0 +1,1 @@
+/home/gokul/Projects/app/Enliten/.gitignore
