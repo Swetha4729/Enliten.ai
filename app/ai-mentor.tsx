@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
   Modal,
   Image,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -61,7 +62,8 @@ import Animated, {
   withRepeat,
   withSequence,
   FadeIn,
-  FadeOut
+  FadeOut,
+  Easing
 } from 'react-native-reanimated';
 import { useTheme, ThemeColors } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -115,6 +117,207 @@ const EnlitenCoreIcon = ({ size = 64 }: { size?: number }) => (
     />
   </Svg>
 );
+
+// ────────────────────────────────────────────────────────────────────────────
+// SOURCE FAVICON COMPONENT (Claude-style)
+// ────────────────────────────────────────────────────────────────────────────
+const SourceFavicon = ({ uri, title, size = 24 }: { uri: string; title?: string; size?: number }) => {
+  const [failed, setFailed] = React.useState(false);
+  let faviconUrl = '';
+  let fallbackLetter = '?';
+  try {
+    const hostname = new URL(uri).hostname.replace('www.', '');
+    faviconUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`;
+    fallbackLetter = (title || hostname).charAt(0).toUpperCase();
+  } catch (e) {
+    fallbackLetter = (title || '?').charAt(0).toUpperCase();
+  }
+
+  if (failed || !faviconUrl) {
+    return (
+      <View style={{
+        width: size, height: size, borderRadius: size / 2,
+        backgroundColor: '#38383D',
+        alignItems: 'center', justifyContent: 'center',
+      }}>
+        <Text style={{ color: '#CCC', fontSize: size * 0.5, fontWeight: '700' }}>{fallbackLetter}</Text>
+      </View>
+    );
+  }
+
+  return (
+    <Image
+      source={{ uri: faviconUrl }}
+      style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: '#38383D' }}
+      onError={() => setFailed(true)}
+    />
+  );
+};
+
+// Custom Markdown Image component to render images correctly and allow fullscreen preview
+const MarkdownImage = ({ src, alt }: { src: string; alt?: string }) => {
+  const { colors, isDark } = useTheme();
+  const [aspectRatio, setAspectRatio] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+
+  useEffect(() => {
+    if (!src) {
+      setLoading(false);
+      setError(true);
+      return;
+    }
+
+    // Attempt to dynamically fetch original image dimensions
+    Image.getSize(
+      src,
+      (w, h) => {
+        if (w && h) {
+          setAspectRatio(w / h);
+        }
+        setLoading(false);
+      },
+      (err) => {
+        console.warn('Failed to get size for markdown image:', src, err);
+        setLoading(false);
+      }
+    );
+  }, [src]);
+
+  return (
+    <View style={{ marginVertical: 8, width: '100%' }}>
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => {
+          if (!error) {
+            setModalVisible(true);
+          }
+        }}
+        style={{
+          borderRadius: 14,
+          overflow: 'hidden',
+          backgroundColor: isDark ? '#1E2022' : '#F3F4F6',
+          borderWidth: 1,
+          borderColor: colors.border,
+          minHeight: loading ? 160 : undefined,
+          justifyContent: 'center',
+          alignItems: 'center',
+          width: '100%',
+        }}
+      >
+        {loading && (
+          <View style={{ position: 'absolute', zIndex: 1 }}>
+            <ActivityIndicator size="small" color={colors.primary} />
+          </View>
+        )}
+        
+        {src ? (
+          <Image
+            source={{ uri: src }}
+            style={{
+              width: '100%',
+              aspectRatio: aspectRatio || 16 / 9,
+            }}
+            resizeMode="cover"
+            onError={() => {
+              setError(true);
+              setLoading(false);
+            }}
+            onLoadEnd={() => setLoading(false)}
+          />
+        ) : null}
+
+        {error && (
+          <View style={{ padding: 20, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: colors.subText, fontSize: 13 }}>Failed to load image</Text>
+          </View>
+        )}
+
+        {alt && !error && !loading && (
+          <View style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            paddingVertical: 6,
+            paddingHorizontal: 12,
+          }}>
+            <Text style={{ color: '#FFF', fontSize: 11, textAlign: 'center' }} numberOfLines={1}>
+              {alt}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+
+      {/* Full screen modal for viewing the image */}
+      <Modal
+        visible={modalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
+          <TouchableOpacity
+            style={{
+              position: 'absolute',
+              top: 50,
+              right: 20,
+              zIndex: 10,
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+            onPress={() => setModalVisible(false)}
+          >
+            <X size={24} color="#FFF" />
+          </TouchableOpacity>
+
+          {Platform.OS === 'ios' ? (
+            <ScrollView
+              maximumZoomScale={3}
+              minimumZoomScale={1}
+              contentContainerStyle={{ flex: 1, justifyContent: 'center', alignItems: 'center', width: width }}
+              showsHorizontalScrollIndicator={false}
+              showsVerticalScrollIndicator={false}
+            >
+              <Image
+                source={{ uri: src }}
+                style={{
+                  width: width,
+                  height: height * 0.8,
+                }}
+                resizeMode="contain"
+              />
+            </ScrollView>
+          ) : (
+            <Image
+              source={{ uri: src }}
+              style={{
+                width: width,
+                height: height * 0.8,
+              }}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
+    </View>
+  );
+};
+
+// Markdown rules to override default image renderer with custom MarkdownImage component
+const markdownRules = {
+  image: (node: any) => {
+    const src = node.attributes?.src;
+    const alt = node.attributes?.alt;
+    return <MarkdownImage key={node.key} src={src} alt={alt} />;
+  },
+};
 
 // MOCK_HISTORY removed, using dynamic database threads now
 
@@ -1030,7 +1233,8 @@ export default function AiMentorScreen() {
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [activeModel, setActiveModel] = useState('Pro Extended');
+  const [activeModel, setActiveModel] = useState('AI Mentor Pro');
+  const [sourcesModalData, setSourcesModalData] = useState<any[] | null>(null);
 
   // Generative UI quiz submissions tracker
   const [quizSubmissions, setQuizSubmissions] = useState<Record<number, { selectedAnswers: Record<number, number>; submitted: boolean }>>({});
@@ -1073,15 +1277,27 @@ export default function AiMentorScreen() {
   const sidebarOffset = useSharedValue(-280);
   const starScale = useSharedValue(1);
 
-  // Keyboard height tracking for Android (avoids KeyboardAvoidingView ghost padding bug)
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  // Keyboard height tracking for Android — uses Reanimated for seamless animation
+  const keyboardHeightAnim = useSharedValue(0);
+  const animatedKeyboardStyle = useAnimatedStyle(() => ({
+    paddingBottom: keyboardHeightAnim.value > 0 ? 8 : Math.max(insets.bottom, 12),
+  }));
+  const animatedKeyboardContainerStyle = useAnimatedStyle(() => ({
+    paddingBottom: keyboardHeightAnim.value,
+  }));
   useEffect(() => {
     if (Platform.OS !== 'android') return;
     const showSub = Keyboard.addListener('keyboardDidShow', (e) => {
-      setKeyboardHeight(e.endCoordinates.height);
+      keyboardHeightAnim.value = withTiming(e.endCoordinates.height, {
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+      });
     });
     const hideSub = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardHeight(0);
+      keyboardHeightAnim.value = withTiming(0, {
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+      });
     });
     return () => {
       showSub.remove();
@@ -1362,8 +1578,8 @@ export default function AiMentorScreen() {
     try {
       let { data: { session } } = await supabase.auth.getSession();
       let token = session?.access_token;
-
-      const API_URL = 'http://10.113.171.249:8080/api/chat-ollama';
+      // const API_URL = 'https://enliten-admin.vercel.app/api/chat-ollama'
+      const API_URL = 'http://172.30.209.175:8080/api/chat-ollama';
 
       // Construct request payload. If there is no active convoId, send user profile info as the session's first message.
       const payload: any = {
@@ -1557,7 +1773,7 @@ export default function AiMentorScreen() {
   };
 
   const toggleModel = () => {
-    const nextModel = activeModel === 'Pro Extended' ? 'Flash 1.5' : 'Pro Extended';
+    const nextModel = activeModel === 'AI Mentor Pro' ? 'AI Mentor Lite' : 'AI Mentor Pro';
     setActiveModel(nextModel);
   };
 
@@ -1565,7 +1781,7 @@ export default function AiMentorScreen() {
 
   // Extract Markdown Style Mapping Configuration
   const markdownStyles = {
-    body: { color: colors.text, fontSize: 15, lineHeight: 24 },
+    body: { color: colors.text, fontSize: 16, lineHeight: 25 },
     blockquote: {
       backgroundColor: isDark ? '#1C1D24' : '#F3F4F6',
       borderLeftColor: colors.primary,
@@ -1579,7 +1795,7 @@ export default function AiMentorScreen() {
     heading2: { color: colors.text, fontSize: 19, fontWeight: '700', marginTop: 14, marginBottom: 8 },
     heading3: { color: colors.text, fontSize: 17, fontWeight: '700', marginTop: 12, marginBottom: 6 },
     heading4: { color: colors.text, fontSize: 15, fontWeight: '700', marginTop: 10, marginBottom: 6 },
-    paragraph: { color: colors.text, fontSize: 15, lineHeight: 24, marginTop: 4, marginBottom: 10 },
+    paragraph: { color: colors.text, fontSize: 16, lineHeight: 25, marginTop: 4, marginBottom: 10 },
     code_inline: {
       fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
       backgroundColor: colors.inputBg,
@@ -1697,9 +1913,9 @@ export default function AiMentorScreen() {
 
                 return (
                   <View key={index} style={[styles.messageRow, msg.sender === 'user' ? styles.userRow : styles.aiRow]}>
-                    {msg.sender === 'ai' && (
+                    {/* {msg.sender === 'ai' && (
                       <View style={styles.aiAvatarWrapper}><EnlitenCoreIcon size={20} /></View>
-                    )}
+                    )} */}
                     <View style={[styles.messageBubble, msg.sender === 'user' ? styles.userBubble : styles.aiBubble]}>
                       {msg.sender === 'user' ? (
                         <>
@@ -1726,26 +1942,18 @@ export default function AiMentorScreen() {
                         </>
                       ) : (
                         <>
-                          {msg.sources && msg.sources.groundingChunks && msg.sources.groundingChunks.length > 0 && (
-                            <View style={styles.sourcesWrapper}>
-                              <Text style={styles.sourcesHeader}>Sources</Text>
-                              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sourcesScroll}>
-                                {msg.sources.groundingChunks.map((chunk: any, chunkIdx: number) => (
-                                  <TouchableOpacity key={chunkIdx} style={styles.sourceCircleBtn} onPress={() => Alert.alert('Source', chunk.web?.uri)}>
-                                    <View style={styles.sourceCircle}>
-                                      <Text style={styles.sourceCircleText}>{chunkIdx + 1}</Text>
-                                    </View>
-                                    <Text style={styles.sourceTitleText} numberOfLines={1}>{chunk.web?.title}</Text>
-                                  </TouchableOpacity>
-                                ))}
-                              </ScrollView>
-                            </View>
-                          )}
-
                           {/* Render blocks seamlessly */}
                           {blocks.map((blk, bIdx) => {
                             if (blk.type === 'text') {
-                              return <Markdown key={bIdx} style={markdownStyles as any}>{blk.content || ''}</Markdown>;
+                              return (
+                                <Markdown
+                                  key={bIdx}
+                                  style={markdownStyles as any}
+                                  rules={markdownRules}
+                                >
+                                  {blk.content || ''}
+                                </Markdown>
+                              );
                             } else if (blk.type === 'QUIZ_UI' && blk.data) {
                               return <GenerativeQuizCard key={bIdx} data={blk.data} messageIndex={index} colors={colors} isDark={isDark} styles={styles} quizSubmissions={quizSubmissions} setQuizSubmissions={setQuizSubmissions} setIsTyping={setIsTyping} setMessages={setMessages} />;
                             } else if (blk.type === 'CHART_UI' && blk.data) {
@@ -1761,6 +1969,29 @@ export default function AiMentorScreen() {
                             }
                             return null;
                           })}
+
+                          {/* Sources — Claude style: overlapping favicon circles, opens bottom sheet */}
+                          {msg.sources && msg.sources.groundingChunks && msg.sources.groundingChunks.length > 0 && (
+                            <TouchableOpacity
+                              style={styles.sourcesWrapper}
+                              onPress={() => setSourcesModalData(msg.sources.groundingChunks)}
+                              activeOpacity={0.7}
+                            >
+                              <Text style={styles.sourcesLabel}>Sources</Text>
+                              <View style={styles.sourcesRow}>
+                                {msg.sources.groundingChunks.slice(0, 5).map((chunk: any, chunkIdx: number) => (
+                                  <View key={chunkIdx} style={[styles.sourceFaviconBtn, { marginLeft: chunkIdx === 0 ? 0 : -8, zIndex: 10 - chunkIdx }]}>
+                                    <SourceFavicon uri={chunk.web?.uri || ''} title={chunk.web?.title} size={22} />
+                                  </View>
+                                ))}
+                                {msg.sources.groundingChunks.length > 5 && (
+                                  <View style={[styles.sourceFaviconBtn, { marginLeft: -8, zIndex: 0 }]}>
+                                    <Text style={{ color: '#AAA', fontSize: 10, fontWeight: '700' }}>+{msg.sources.groundingChunks.length - 5}</Text>
+                                  </View>
+                                )}
+                              </View>
+                            </TouchableOpacity>
+                          )}
 
                           {msg.followUpQuestions && Array.isArray(msg.followUpQuestions) && msg.followUpQuestions.length > 0 && (
                             <View style={styles.followUpWrapper}>
@@ -1790,6 +2021,9 @@ export default function AiMentorScreen() {
               </View>
             )}
           </ScrollView>
+
+
+
           <View style={[styles.inputWrapper, { paddingBottom: Math.max(insets.bottom, 12), paddingTop: 8 }]}>
             {/* Attachment Preview Bar */}
             {hasAttachments && (
@@ -1866,7 +2100,7 @@ export default function AiMentorScreen() {
           </View>
         </KeyboardAvoidingView>
       ) : (
-        <View style={{ flex: 1, paddingBottom: keyboardHeight }}>
+        <Animated.View style={[{ flex: 1 }, animatedKeyboardContainerStyle]}>
           <ScrollView
             ref={scrollViewRef}
             style={styles.chatArea}
@@ -1893,9 +2127,9 @@ export default function AiMentorScreen() {
 
                 return (
                   <View key={index} style={[styles.messageRow, msg.sender === 'user' ? styles.userRow : styles.aiRow]}>
-                    {msg.sender === 'ai' && (
+                    {/* {msg.sender === 'ai' && (
                       <View style={styles.aiAvatarWrapper}><EnlitenCoreIcon size={20} /></View>
-                    )}
+                    )} */}
                     <View style={[styles.messageBubble, msg.sender === 'user' ? styles.userBubble : styles.aiBubble]}>
                       {msg.sender === 'user' ? (
                         <>
@@ -1922,26 +2156,18 @@ export default function AiMentorScreen() {
                         </>
                       ) : (
                         <>
-                          {msg.sources && msg.sources.groundingChunks && msg.sources.groundingChunks.length > 0 && (
-                            <View style={styles.sourcesWrapper}>
-                              <Text style={styles.sourcesHeader}>Sources</Text>
-                              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sourcesScroll}>
-                                {msg.sources.groundingChunks.map((chunk: any, chunkIdx: number) => (
-                                  <TouchableOpacity key={chunkIdx} style={styles.sourceCircleBtn} onPress={() => Alert.alert('Source', chunk.web?.uri)}>
-                                    <View style={styles.sourceCircle}>
-                                      <Text style={styles.sourceCircleText}>{chunkIdx + 1}</Text>
-                                    </View>
-                                    <Text style={styles.sourceTitleText} numberOfLines={1}>{chunk.web?.title}</Text>
-                                  </TouchableOpacity>
-                                ))}
-                              </ScrollView>
-                            </View>
-                          )}
-
                           {/* Render blocks seamlessly */}
                           {blocks.map((blk, bIdx) => {
                             if (blk.type === 'text') {
-                              return <Markdown key={bIdx} style={markdownStyles as any}>{blk.content || ''}</Markdown>;
+                              return (
+                                <Markdown
+                                  key={bIdx}
+                                  style={markdownStyles as any}
+                                  rules={markdownRules}
+                                >
+                                  {blk.content || ''}
+                                </Markdown>
+                              );
                             } else if (blk.type === 'QUIZ_UI' && blk.data) {
                               return <GenerativeQuizCard key={bIdx} data={blk.data} messageIndex={index} colors={colors} isDark={isDark} styles={styles} quizSubmissions={quizSubmissions} setQuizSubmissions={setQuizSubmissions} setIsTyping={setIsTyping} setMessages={setMessages} />;
                             } else if (blk.type === 'CHART_UI' && blk.data) {
@@ -1957,6 +2183,29 @@ export default function AiMentorScreen() {
                             }
                             return null;
                           })}
+
+                          {/* Sources — Claude style: overlapping favicon circles, opens bottom sheet */}
+                          {msg.sources && msg.sources.groundingChunks && msg.sources.groundingChunks.length > 0 && (
+                            <TouchableOpacity
+                              style={styles.sourcesWrapper}
+                              onPress={() => setSourcesModalData(msg.sources.groundingChunks)}
+                              activeOpacity={0.7}
+                            >
+                              <Text style={styles.sourcesLabel}>Sources</Text>
+                              <View style={styles.sourcesRow}>
+                                {msg.sources.groundingChunks.slice(0, 5).map((chunk: any, chunkIdx: number) => (
+                                  <View key={chunkIdx} style={[styles.sourceFaviconBtn, { marginLeft: chunkIdx === 0 ? 0 : -8, zIndex: 10 - chunkIdx }]}>
+                                    <SourceFavicon uri={chunk.web?.uri || ''} title={chunk.web?.title} size={22} />
+                                  </View>
+                                ))}
+                                {msg.sources.groundingChunks.length > 5 && (
+                                  <View style={[styles.sourceFaviconBtn, { marginLeft: -8, zIndex: 0 }]}>
+                                    <Text style={{ color: '#AAA', fontSize: 10, fontWeight: '700' }}>+{msg.sources.groundingChunks.length - 5}</Text>
+                                  </View>
+                                )}
+                              </View>
+                            </TouchableOpacity>
+                          )}
 
                           {msg.followUpQuestions && Array.isArray(msg.followUpQuestions) && msg.followUpQuestions.length > 0 && (
                             <View style={styles.followUpWrapper}>
@@ -1986,7 +2235,7 @@ export default function AiMentorScreen() {
               </View>
             )}
           </ScrollView>
-          <View style={[styles.inputWrapper, { paddingBottom: keyboardHeight > 0 ? 8 : Math.max(insets.bottom, 12), paddingTop: 8 }]}>
+          <Animated.View style={[styles.inputWrapper, { paddingTop: 8 }, animatedKeyboardStyle]}>
             {/* Attachment Preview Bar */}
             {hasAttachments && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10, paddingHorizontal: 4 }} contentContainerStyle={{ gap: 10 }}>
@@ -2059,9 +2308,79 @@ export default function AiMentorScreen() {
                 </View>
               )}
             </View>
+          </Animated.View>
+        </Animated.View>
+      )}
+
+      {/* ── Sources Bottom Sheet Modal ── */}
+      <Modal
+        visible={sourcesModalData !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSourcesModalData(null)}
+      >
+        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <TouchableOpacity
+            style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' }}
+            activeOpacity={1}
+            onPress={() => setSourcesModalData(null)}
+          />
+          <View style={{
+            backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            paddingBottom: Math.max(insets.bottom, 20),
+            maxHeight: height * 0.55,
+          }}>
+            {/* Handle bar */}
+            <View style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 6 }}>
+              <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: isDark ? '#555' : '#CCC' }} />
+            </View>
+            {/* Header */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: isDark ? '#333' : '#E5E5E5' }}>
+              <TouchableOpacity onPress={() => setSourcesModalData(null)} style={{ padding: 4 }}>
+                <X size={20} color={colors.text} />
+              </TouchableOpacity>
+              <Text style={{ flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '700', color: colors.text }}>Sources</Text>
+              <View style={{ width: 28 }} />
+            </View>
+            {/* Citations label */}
+            <Text style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8, fontSize: 13, fontWeight: '600', color: isDark ? '#888' : '#999', textTransform: 'uppercase', letterSpacing: 0.5 }}>Citations</Text>
+            {/* Source list */}
+            <ScrollView style={{ paddingHorizontal: 16 }} showsVerticalScrollIndicator={false}>
+              {(sourcesModalData || []).map((chunk: any, idx: number) => {
+                let hostname = '';
+                try { hostname = new URL(chunk.web?.uri || '').hostname.replace('www.', ''); } catch (e) { }
+                return (
+                  <TouchableOpacity
+                    key={idx}
+                    style={{
+                      paddingVertical: 14,
+                      borderBottomWidth: idx < (sourcesModalData || []).length - 1 ? StyleSheet.hairlineWidth : 0,
+                      borderBottomColor: isDark ? '#333' : '#E5E5E5',
+                    }}
+                    onPress={() => {
+                      setSourcesModalData(null);
+                      if (chunk.web?.uri) Linking.openURL(chunk.web.uri);
+                    }}
+                    activeOpacity={0.6}
+                  >
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, marginBottom: 6 }} numberOfLines={2}>
+                      {chunk.web?.title || hostname || 'Source'}
+                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <SourceFavicon uri={chunk.web?.uri || ''} title={chunk.web?.title} size={18} />
+                      <Text style={{ fontSize: 13, color: isDark ? '#888' : '#999', marginLeft: 6 }} numberOfLines={1}>
+                        {hostname}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </View>
         </View>
-      )}
+      </Modal>
 
       {/* ── ATTACHMENT BOTTOM SHEET MODAL ── */}
       <Modal
@@ -2215,7 +2534,6 @@ export default function AiMentorScreen() {
 
         <View style={styles.sidebarFooter}>
           <Text style={styles.sidebarFooterText}>Enliten.ai AI Mentor</Text>
-          <Text style={styles.sidebarVersionText}>v1.2.0</Text>
         </View>
       </Animated.View>
     </View>
@@ -2264,8 +2582,9 @@ const createStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create
     flex: 1,
   },
   chatAreaContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 0,
     paddingTop: 10,
+    marginLeft: 20,
   },
   chatAreaEmptyContent: {
     flexGrow: 1,
@@ -2299,6 +2618,10 @@ const createStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create
   },
   userRow: {
     justifyContent: 'flex-end',
+    paddingRight: 16,
+    width: '80%',
+    alignSelf: 'flex-end',
+
   },
   aiRow: {
     justifyContent: 'flex-start',
@@ -2317,7 +2640,7 @@ const createStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create
     borderRadius: 18,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    maxWidth: '85%',
+    maxWidth: '100%',
   },
   userBubble: {
     backgroundColor: isDark ? '#1E2022' : '#E5E7EB',
@@ -2716,46 +3039,37 @@ const createStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create
     lineHeight: 20,
   },
   sourcesWrapper: {
-    marginBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-    paddingBottom: 8,
-  },
-  sourcesHeader: {
-    color: '#888',
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
-  sourcesScroll: {
     flexDirection: 'row',
-  },
-  sourceCircleBtn: {
     alignItems: 'center',
-    marginRight: 16,
-    width: 60,
+    alignSelf: 'flex-start',
+    marginTop: 14,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
   },
-  sourceCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#38BDF820',
+  sourcesLabel: {
+    color: isDark ? '#AAA' : '#666',
+    fontSize: 13,
+    fontWeight: '600',
+    marginRight: 8,
+  },
+  sourcesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sourceFaviconBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
-    borderWidth: 1,
-    borderColor: '#38BDF8',
-  },
-  sourceCircleText: {
-    color: '#38BDF8',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  sourceTitleText: {
-    color: '#AAA',
-    fontSize: 10,
-    textAlign: 'center',
+    borderWidth: 2,
+    borderColor: isDark ? '#1A1A1E' : '#FFFFFF',
+    backgroundColor: isDark ? '#2A2A2E' : '#F0F0F0',
+    overflow: 'hidden',
   },
   followUpWrapper: {
     marginTop: 16,
