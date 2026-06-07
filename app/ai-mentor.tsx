@@ -211,7 +211,7 @@ const MarkdownImage = ({ src, alt }: { src: string; alt?: string }) => {
             <ActivityIndicator size="small" color={colors.primary} />
           </View>
         )}
-        
+
         {src ? (
           <Image
             source={{ uri: src }}
