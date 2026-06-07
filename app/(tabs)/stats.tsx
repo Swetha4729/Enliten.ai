@@ -23,6 +23,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { ChartBar as BarChart, Calendar, ChevronDown, ChevronUp, Clock, Crown, Target, Trash2, Zap } from 'lucide-react-native'; // Added icons
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Svg, {
+  Path,
+  Defs,
+  LinearGradient as SvgLinearGradient,
+  Stop,
+  Circle,
+  Text as SvgText,
+  G,
+  Rect,
+  Line
+} from 'react-native-svg';
 
 // Responsive utility functions
 const { width, height } = Dimensions.get('window');
@@ -44,6 +55,299 @@ function subjectColor(score: number) {
   if (score > 49) return '#8A2BE2';
   return '#EF4444';
 }
+
+const getBezierPath = (points: { x: number; y: number }[]) => {
+  if (points.length === 0) return '';
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+  let d = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const curr = points[i];
+    const next = points[i + 1];
+    const cpX1 = curr.x + (next.x - curr.x) / 2;
+    const cpY1 = curr.y;
+    const cpX2 = curr.x + (next.x - curr.x) / 2;
+    const cpY2 = next.y;
+    d += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${next.x} ${next.y}`;
+  }
+  return d;
+};
+
+interface LineChartProps {
+  data: number[];
+  labels: string[];
+  fullDates: string[];
+  colors: any;
+}
+
+const InteractiveLineChart = ({ data, labels, fullDates, colors }: LineChartProps) => {
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(6);
+  const [chartWidth, setChartWidth] = useState(width - 40);
+
+  const onLayout = (event: any) => {
+    const { width: layoutWidth } = event.nativeEvent.layout;
+    if (layoutWidth > 0) {
+      setChartWidth(layoutWidth);
+    }
+  };
+
+  const chartHeight = 200;
+  const paddingLeft = 30;
+  const paddingRight = 15;
+  const paddingTop = 35;
+  const paddingBottom = 35;
+
+  const graphWidth = chartWidth - paddingLeft - paddingRight;
+  const graphHeight = chartHeight - paddingTop - paddingBottom;
+
+  const maxValue = Math.max(...data, 5);
+
+  const getX = (index: number) => {
+    return paddingLeft + (index / (data.length - 1 || 1)) * graphWidth;
+  };
+
+  const getY = (value: number) => {
+    return chartHeight - paddingBottom - (value / maxValue) * graphHeight;
+  };
+
+  const points = data.map((val, idx) => ({
+    x: getX(idx),
+    y: getY(val),
+    value: val,
+    label: labels[idx],
+    date: fullDates[idx]
+  }));
+
+  const linePath = getBezierPath(points);
+  const areaPath = points.length > 0 && linePath
+    ? `${linePath} L ${points[points.length - 1].x} ${chartHeight - paddingBottom} L ${points[0].x} ${chartHeight - paddingBottom} Z`
+    : '';
+
+  const gridLines = [0, Math.round(maxValue / 2), maxValue];
+  const columnWidth = graphWidth / (data.length - 1 || 1);
+
+  return (
+    <View style={{ width: '100%' }} onLayout={onLayout}>
+      {/* Selected Value Display Header */}
+      {selectedIndex !== null && points[selectedIndex] && (
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingHorizontal: 4 }}>
+          <View>
+            <Text style={{ color: colors.subText, fontSize: 12, fontWeight: '600' }}>
+              {points[selectedIndex].date}
+            </Text>
+            <Text style={{ color: colors.text, fontSize: 18, fontWeight: '800', marginTop: 2 }}>
+              {points[selectedIndex].value} <Text style={{ fontSize: 13, fontWeight: '500', color: colors.subText }}>questions solved</Text>
+            </Text>
+          </View>
+          {selectedIndex === 6 && (
+            <View style={{ backgroundColor: colors.primaryMuted, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: colors.primary + '30' }}>
+              <Text style={{ color: colors.primary, fontSize: 10, fontWeight: '700' }}>TODAY</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* SVG Container */}
+      <View style={{ height: chartHeight, overflow: 'hidden' }}>
+        <Svg width={chartWidth} height={chartHeight}>
+          <Defs>
+            {/* Gradient under the line */}
+            <SvgLinearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%" stopColor={colors.primary} stopOpacity={0.25} />
+              <Stop offset="100%" stopColor={colors.primary} stopOpacity={0.0} />
+            </SvgLinearGradient>
+
+            {/* Gradient for the line stroke */}
+            <SvgLinearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+              <Stop offset="0%" stopColor={colors.secondary} />
+              <Stop offset="50%" stopColor={colors.primary} />
+              <Stop offset="100%" stopColor={colors.tint || colors.primary} />
+            </SvgLinearGradient>
+          </Defs>
+
+          {/* Grid lines & Y-Axis Labels */}
+          {gridLines.map((val, idx) => {
+            const y = getY(val);
+            return (
+              <G key={idx}>
+                {/* Horizontal Grid Line */}
+                <Line
+                  x1={paddingLeft}
+                  y1={y}
+                  x2={chartWidth - paddingRight}
+                  y2={y}
+                  stroke={colors.border}
+                  strokeWidth={1}
+                  strokeDasharray={val === 0 ? undefined : "4 4"}
+                  opacity={val === 0 ? 0.8 : 0.4}
+                />
+                {/* Y-Axis Label */}
+                <SvgText
+                  x={paddingLeft - 8}
+                  y={y + 4}
+                  fill={colors.subText}
+                  fontSize={10}
+                  fontWeight="600"
+                  textAnchor="end"
+                  opacity={0.7}
+                >
+                  {val}
+                </SvgText>
+              </G>
+            );
+          })}
+
+          {/* Faint vertical grid lines for weekdays */}
+          {points.map((pt, idx) => (
+            <Line
+              key={`vert-${idx}`}
+              x1={pt.x}
+              y1={paddingTop}
+              x2={pt.x}
+              y2={chartHeight - paddingBottom}
+              stroke={colors.border}
+              strokeWidth={1}
+              strokeDasharray="2 4"
+              opacity={0.15}
+            />
+          ))}
+
+          {/* Gradient Fill under Bezier Path */}
+          {areaPath ? (
+            <Path
+              d={areaPath}
+              fill="url(#areaGrad)"
+            />
+          ) : null}
+
+          {/* Bezier Curved Line Stroke */}
+          {linePath ? (
+            <Path
+              d={linePath}
+              fill="none"
+              stroke="url(#lineGrad)"
+              strokeWidth={3}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          ) : null}
+
+          {/* Selected indicator vertical line */}
+          {selectedIndex !== null && points[selectedIndex] && (
+            <Line
+              x1={points[selectedIndex].x}
+              y1={paddingTop - 5}
+              x2={points[selectedIndex].x}
+              y2={chartHeight - paddingBottom}
+              stroke={colors.primary}
+              strokeWidth={1.5}
+              strokeDasharray="3 3"
+              opacity={0.6}
+            />
+          )}
+
+          {/* Data Dots */}
+          {points.map((pt, idx) => {
+            const isSelected = selectedIndex === idx;
+            return (
+              <G key={idx}>
+                {/* Glow ring under selected dot */}
+                {isSelected && (
+                  <Circle
+                    cx={pt.x}
+                    cy={pt.y}
+                    r={9}
+                    fill={colors.primary}
+                    opacity={0.25}
+                  />
+                )}
+
+                {/* Inner dot */}
+                <Circle
+                  cx={pt.x}
+                  cy={pt.y}
+                  r={isSelected ? 5 : 4}
+                  fill={isSelected ? colors.primary : colors.card}
+                  stroke={colors.primary}
+                  strokeWidth={2.5}
+                />
+              </G>
+            );
+          })}
+
+          {/* X-Axis labels inside Svg */}
+          {points.map((pt, idx) => {
+            const isSelected = selectedIndex === idx;
+            return (
+              <G key={`label-${idx}`}>
+                <SvgText
+                  x={pt.x}
+                  y={chartHeight - 12}
+                  fill={isSelected ? colors.primary : colors.subText}
+                  fontSize={11}
+                  fontWeight={isSelected ? "700" : "600"}
+                  textAnchor="middle"
+                >
+                  {pt.label}
+                </SvgText>
+                {isSelected && (
+                  <Circle
+                    cx={pt.x}
+                    cy={chartHeight - 4}
+                    r={2}
+                    fill={colors.primary}
+                  />
+                )}
+              </G>
+            );
+          })}
+
+          {/* Tooltip directly on SVG */}
+          {selectedIndex !== null && points[selectedIndex] && (
+            <G transform={`translate(${points[selectedIndex].x}, ${points[selectedIndex].y - 26 < 12 ? points[selectedIndex].y + 18 : points[selectedIndex].y - 26})`}>
+              {/* Tooltip Background */}
+              <Rect
+                x={-18}
+                y={-8}
+                width={36}
+                height={17}
+                rx={5}
+                fill={colors.text}
+              />
+              {/* Tooltip Value */}
+              <SvgText
+                x={0}
+                y={4}
+                fill={colors.card}
+                fontSize={10}
+                fontWeight="800"
+                textAnchor="middle"
+              >
+                {points[selectedIndex].value}
+              </SvgText>
+            </G>
+          )}
+
+          {/* Transparent hit area columns covering full chart height for optimal touch response */}
+          {points.map((pt, idx) => {
+            const rectWidth = columnWidth;
+            const rectX = pt.x - rectWidth / 2;
+            return (
+              <Rect
+                key={`hit-${idx}`}
+                x={rectX}
+                y={0}
+                width={rectWidth}
+                height={chartHeight}
+                fill="transparent"
+                onPress={() => setSelectedIndex(idx)}
+              />
+            );
+          })}
+        </Svg>
+      </View>
+    </View>
+  );
+};
 
 
 
@@ -116,7 +420,29 @@ export default function StatsScreen() {
 
       // If there are no questions for this exam, there's nothing to show.
       if (questionIdsForExam.length === 0) {
-        setStats({ streak: 0, totalQuestions: 0, accuracy: 0, studyTime: '0m', weeklyProgress: Array(7).fill(0), subjectScores: [], adaptive: adaptiveProgress, totalAdaptiveQuestions });
+        const fallbackLabels = [];
+        const fallbackFullDates = [];
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const todayVal = new Date();
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(todayVal);
+          d.setDate(todayVal.getDate() - (6 - i));
+          fallbackLabels.push(dayNames[d.getDay()]);
+          fallbackFullDates.push(`${monthNames[d.getMonth()]} ${d.getDate()}`);
+        }
+        setStats({
+          streak: 0,
+          totalQuestions: 0,
+          accuracy: 0,
+          studyTime: '0m',
+          weeklyProgress: Array(7).fill(0),
+          weeklyLabels: fallbackLabels,
+          weeklyFullDates: fallbackFullDates,
+          subjectScores: [],
+          adaptive: adaptiveProgress,
+          totalAdaptiveQuestions
+        });
         setLoading(false);
         setRefreshing(false);
         return;
@@ -186,11 +512,17 @@ export default function StatsScreen() {
 
       // Calculate Weekly Progress
       const weeklyProgress = Array(7).fill(0);
+      const weeklyLabels = [];
+      const weeklyFullDates = [];
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       for (let i = 0; i < 7; i++) {
         const d = new Date(today);
         d.setDate(today.getDate() - (6 - i));
         const ds = d.toISOString().slice(0, 10);
         weeklyProgress[i] = answers.filter((a: any) => (a.answered_at || '').slice(0, 10) === ds).length;
+        weeklyLabels.push(dayNames[d.getDay()]);
+        weeklyFullDates.push(`${monthNames[d.getMonth()]} ${d.getDate()}`);
       }
 
       // Calculate Domain Performance
@@ -230,6 +562,8 @@ export default function StatsScreen() {
         accuracy,
         studyTime,
         weeklyProgress,
+        weeklyLabels,
+        weeklyFullDates,
         subjectScores,
         adaptive: adaptiveProgress, // Add adaptive progress to stats
         totalAdaptiveQuestions,
@@ -363,7 +697,6 @@ export default function StatsScreen() {
     }
   }, [user, exam, examLoading]);
 
-  const maxWeeklyValue = stats ? Math.max(...stats.weeklyProgress, 1) : 1;
   const adaptiveLevel = stats?.adaptive?.current_level || 1;
   const adaptiveRank = getRankForLevel(adaptiveLevel);
   const adaptiveSwiped = stats?.adaptive?.total_cards_swiped || 0;
@@ -523,35 +856,20 @@ export default function StatsScreen() {
                 </View>
               </View>
 
-              {/* Weekly Chart - Same as before */}
+              {/* Weekly Chart - Modern Line Chart */}
               <View style={styles.chartCard}>
                 <Text style={styles.cardTitle}>Weekly Activity</Text>
-                <View style={styles.chartContainer}>
-                  <View style={styles.chart}>
-                    {stats?.weeklyProgress?.map((score: number, index: number) => {
-                      const heightPercentage = (score / maxWeeklyValue) * 100;
-                      const barHeight = (score > 0 ? `${heightPercentage}%` : 2) as any;
-                      return (
-                        <View key={index} style={styles.chartColumn}>
-                          <View style={styles.chartBarWrapper}>
-                            <View
-                              style={[
-                                styles.chartBar,
-                                {
-                                  height: barHeight,
-                                  backgroundColor: index === 6 ? colors.primary : colors.secondary,
-                                  opacity: score > 0 ? 1 : 0.3,
-                                },
-                              ]}
-                            />
-                          </View>
-                          <Text style={[styles.chartLabel, index === 6 && { color: colors.primary, fontWeight: 'bold' }]}>
-                            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][index]}
-                          </Text>
-                        </View>
-                      )
-                    })}
-                  </View>
+                <View style={{ minHeight: 220, justifyContent: 'center' }}>
+                  {stats?.weeklyProgress ? (
+                    <InteractiveLineChart
+                      data={stats.weeklyProgress}
+                      labels={stats.weeklyLabels || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']}
+                      fullDates={stats.weeklyFullDates || ['', '', '', '', '', '', '']}
+                      colors={colors}
+                    />
+                  ) : (
+                    <Text style={{ color: colors.subText, textAlign: 'center' }}>No activity data available.</Text>
+                  )}
                 </View>
               </View>
 

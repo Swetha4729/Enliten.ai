@@ -12,16 +12,63 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import Animated, { Easing, FadeInDown, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
-import Svg, { Circle } from 'react-native-svg';
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeInDown,
+  FadeInUp,
+  FadeInRight,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSpring,
+  withTiming,
+  withSequence,
+  withDelay,
+  interpolate,
+  Extrapolation,
+  FadeInLeft,
+} from 'react-native-reanimated';
+import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Stop, Path } from 'react-native-svg';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
+import {
+  ChartBar as BarChart,
+  Bell,
+  BookOpen,
+  Calendar,
+  Calendar1,
+  CheckCircle,
+  ChevronRight,
+  Clock,
+  Crown,
+  CreditCard as Edit,
+  Layers,
+  Target,
+  TrendingUp,
+  X,
+  Bot,
+  ShoppingBag,
+  Camera,
+  Quote,
+  Sparkles,
+  Zap,
+  Shield,
+  Star,
+  Play,
+  Infinity,
+  Sparkle,
+} from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import LottieView from 'lottie-react-native';
 
-// Responsive utility functions
+// ─── RESPONSIVE UTILITIES ────────────────────────────────────────────────────
 const { width, height } = Dimensions.get('window');
 const guidelineBaseWidth = 375;
 const guidelineBaseHeight = 812;
 const hs = (size: number) => (width / guidelineBaseWidth) * size;
 const vs = (size: number) => (height / guidelineBaseHeight) * size;
-const ms = (size: number, factor = 0.5) => size + (hs(size) - size) * factor;
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useExam } from '@/contexts/ExamContext';
@@ -30,163 +77,41 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useQuizModes } from '@/lib/QuizModes';
 import { supabase } from '@/lib/supabase';
 import { prefetchOfflineBank } from '@/utils/offlineSync';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import { ChartBar as BarChart, Bell, BookOpen, Calendar, Calendar1, CheckCircle, ChevronLeft, ChevronRight, Clock, Crown, CreditCard as Edit, Flame, Layers, Target, TrendingUp, Trophy, X, Bot, ShoppingBag, Camera } from 'lucide-react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { title } from 'process';
+
 const today = new Date();
 
-const SHORTCUTS = [
-  {
-    id: 'ai_mentor',
-    title: 'AI Mentor',
-    description: 'Chat with AI tutor',
-    icon: Bot,
-    color: '#6366F1',
-    bgGradient: ['rgba(99, 102, 241, 0.12)', 'rgba(99, 102, 241, 0.02)'] as [string, string],
-    borderColor: 'rgba(99, 102, 241, 0.25)',
-  },
-  {
-    id: 'digital_store',
-    title: 'Digital Store',
-    description: 'Guides & mock tests',
-    icon: ShoppingBag,
-    color: '#EC4899',
-    bgGradient: ['rgba(236, 72, 153, 0.12)', 'rgba(236, 72, 153, 0.02)'] as [string, string],
-    borderColor: 'rgba(236, 72, 153, 0.25)',
-  },
-  {
-    id: 'doubt_solver',
-    title: 'Doubt Solver',
-    description: 'Scan & solve questions',
-    icon: Camera,
-    color: '#10B981',
-    bgGradient: ['rgba(16, 185, 129, 0.12)', 'rgba(16, 185, 129, 0.02)'] as [string, string],
-    borderColor: 'rgba(16, 185, 129, 0.25)',
-  },
-  {
-    id: 'study_planner',
-    title: 'Study Planner',
-    description: 'AI revision schedule',
-    icon: Calendar,
-    color: '#F59E0B',
-    bgGradient: ['rgba(245, 158, 11, 0.12)', 'rgba(245, 158, 11, 0.02)'] as [string, string],
-    borderColor: 'rgba(245, 158, 11, 0.25)',
-  },
+// ─── MOTIVATIONAL QUOTES ─────────────────────────────────────────────────────
+const MOTIVATIONAL_QUOTES = [
+  { text: "Your potential is infinite. Keep pushing boundaries.", author: "Dr. A.P.J. Abdul Kalam" },
+  { text: "Small daily improvements lead to stunning results.", author: "Robin Sharma" },
+  { text: "Focus on progress, not perfection.", author: "Bill Gates" },
+  { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
+  { text: "Action is the foundational key to all success.", author: "Pablo Picasso" },
+  { text: "Every expert was once a beginner.", author: "Pablo Picasso" },
+  { text: "Don't wish it were easier. Wish you were better.", author: "Jim Rohn" },
+  { text: "Champions keep playing until they get it right.", author: "Billie Jean King" },
 ];
 
-const timeAgo = (dateStr: string) => {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-  if (seconds < 60) return `Just now`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  const weeks = Math.floor(days / 7);
-  if (weeks < 4) return `${weeks}w ago`;
-  const months = Math.floor(days / 30);
-  if (months < 12) return `${months}mo ago`;
-  return `${Math.floor(days / 365)}y ago`;
-};
-
+// ─── QUIZ MODES ─────────────────────────────────────────────────────────────
 const QUIZ_MODES = [
-  {
-    id: 'daily',
-    title: 'Question of the Day',
-    icon: Calendar,
-    subtitle: today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    color: '#3B82F6',
-    order_index: 0,
-    isPremium: false,
-  },
-  {
-    id: 'flashcard',
-    title: 'Flashcards',
-    icon: Layers,
-    subtitle: 'Adaptive Learning',
-    color: '#EC4899',
-    order_index: 1,
-    isPremium: true,
-  },
-  {
-    id: 'quick_10',
-    title: 'Practice Quiz',
-    icon: Target,
-    subtitle: 'Short quiz round',
-    color: '#8B5CF6',
-    order_index: 2,
-    isPremium: false,
-  },
-  {
-    id: 'pyq',
-    title: 'Practice Quiz (PYQ)',
-    icon: Calendar1,
-    subtitle: 'Previous Year Questions',
-    color: '#acd43eff',
-    order_index: 3,
-    isPremium: false,
-  },
-  {
-    id: 'timed',
-    title: 'Timed Quiz',
-    icon: Clock,
-    subtitle: 'Beat the clock',
-    color: '#06B6D4',
-    order_index: 4,
-    isPremium: false,
-  },
-  {
-    id: 'level_up',
-    title: 'Level Up',
-    icon: TrendingUp,
-    subtitle: 'Progressive difficulty',
-    color: '#0f6b1cff',
-    order_index: 5,
-    isPremium: true,
-  },
-  {
-    id: 'missed',
-    title: 'Missed Questions Quiz',
-    icon: X,
-    subtitle: 'Practice weak areas',
-    color: '#EF4444',
-    order_index: 6,
-    isPremium: true,
-  },
-  {
-    id: 'weakest_subject',
-    title: 'Weakest Domain Quiz',
-    icon: BarChart,
-    subtitle: 'Focus on gaps',
-    color: '#F97316',
-    order_index: 7,
-    isPremium: true,
-  },
-  {
-    id: 'full_test',
-    title: 'Full Mock Test',
-    icon: CheckCircle,
-    subtitle: 'Take the full exam',
-    color: '#890d6cff',
-    order_index: 8,
-    isPremium: false,
+  { id: 'daily', title: 'Daily Challenge', icon: Calendar, subtitle: 'Fresh question daily', color: '#6366F1', order_index: 0, isPremium: false },
+  { id: 'flashcard', title: 'Flashcards', icon: Layers, subtitle: 'Spaced repetition', color: '#EC4899', order_index: 1, isPremium: true },
+  { id: 'quick_10', title: 'Quick Quiz', icon: Target, subtitle: '10 questions fast', color: '#8B5CF6', order_index: 2, isPremium: false },
+  { id: 'pyq', title: 'Previous Year', icon: Calendar1, subtitle: 'PYQ Practice', color: '#06B6D4', order_index: 3, isPremium: false },
+  { id: 'timed', title: 'Timed Challenge', icon: Clock, subtitle: 'Beat the clock', color: '#F59E0B', order_index: 4, isPremium: false },
+  { id: 'level_up', title: 'Level Up', icon: TrendingUp, subtitle: 'Progressive mastery', color: '#10B981', order_index: 5, isPremium: true },
+  { id: 'missed', title: 'Revise Mistakes', icon: X, subtitle: 'Learn from errors', color: '#EF4444', order_index: 6, isPremium: true },
+  { id: 'weakest_subject', title: 'Weak Areas', icon: BarChart, subtitle: 'Focus on gaps', color: '#F97316', order_index: 7, isPremium: true },
+  { id: 'full_test', title: 'Mock Test', icon: CheckCircle, subtitle: 'Full exam simulation', color: '#890D8C', order_index: 8, isPremium: false },
+  { id: 'custom', title: 'Custom Quiz', icon: Edit, subtitle: 'Build your own', color: '#0EA5E9', order_index: 9, isPremium: true },
+];
 
-  },
-  {
-    id: 'custom',
-    title: 'Build Your Own Quiz',
-    icon: Edit,
-    subtitle: 'Customize your practice',
-    color: '#10B981',
-    order_index: 9,
-    isPremium: true,
-  },
+// ─── QUICK TOOLS ────────────────────────────────────────────────────────────
+const QUICK_TOOLS = [
+  { id: 'ai_mentor', title: 'AI Mentor', desc: 'Your smart tutor', icon: Bot, gradient: ['#6366F1', '#8B5CF6'], live: true },
+  { id: 'doubt_solver', title: 'Scan Doubt', desc: 'Photo to solution', icon: Camera, gradient: ['#10B981', '#06B6D4'], new: true },
+  { id: 'study_planner', title: 'Study Plan', desc: 'AI-powered schedule', icon: Calendar, gradient: ['#F59E0B', '#EF4444'], new: true },
+  { id: 'digital_store', title: 'Resources', desc: 'Guides & tests', icon: ShoppingBag, gradient: ['#EC4899', '#F97316'], badge: 'PRO' },
 ];
 
 function enrichModesFromLocal(fetchedModes: any[]): any[] {
@@ -203,142 +128,368 @@ function enrichModesFromLocal(fetchedModes: any[]): any[] {
   });
 }
 
+// ─── ANIMATED COMPONENTS ─────────────────────────────────────────────────────
 
+// Shimmer effect component
+const ShimmerEffect = ({ width = 120, height = 16, borderRadius = 8 }) => {
+  const shimmerValue = useSharedValue(0);
+
+  useEffect(() => {
+    shimmerValue.value = withRepeat(
+      withTiming(1, { duration: 1500, easing: Easing.linear }),
+      -1,
+      false
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    const translateX = interpolate(shimmerValue.value, [0, 1], [-width, width]);
+    return {
+      transform: [{ translateX }],
+      opacity: 0.3,
+    };
+  });
+
+  return (
+    <View style={{ width, height, borderRadius, backgroundColor: 'rgba(128,128,128,0.15)', overflow: 'hidden' }}>
+      <Animated.View style={[{ width: width * 0.5, height: '100%', backgroundColor: 'rgba(255,255,255,0.3)' }, animatedStyle]} />
+    </View>
+  );
+};
+
+// Pulse dot animation
+const PulseDot = ({ color = '#10B981' }) => {
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(1);
+
+  useEffect(() => {
+    scale.value = withRepeat(
+      withSequence(
+        withTiming(1.4, { duration: 600 }),
+        withTiming(1, { duration: 600 })
+      ),
+      -1,
+      false
+    );
+    opacity.value = withRepeat(
+      withSequence(
+        withTiming(0.4, { duration: 600 }),
+        withTiming(1, { duration: 600 })
+      ),
+      -1,
+      false
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Animated.View style={[{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }, animatedStyle]} />
+  );
+};
+
+// Floating particle
+const FloatingParticle = ({ delay = 0, size = 4, color = '#6366F1' }) => {
+  const translateY = useSharedValue(0);
+  const translateX = useSharedValue(0);
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    const runAnimation = () => {
+      opacity.value = withSequence(
+        withTiming(0.6, { duration: 2000 }),
+        withTiming(0, { duration: 2000 })
+      );
+      translateY.value = withSequence(
+        withTiming(-30, { duration: 4000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 4000, easing: Easing.inOut(Easing.ease) })
+      );
+      translateX.value = withSequence(
+        withTiming(10, { duration: 4000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(-10, { duration: 4000, easing: Easing.inOut(Easing.ease) })
+      );
+    };
+
+    setTimeout(() => {
+      runAnimation();
+      setInterval(runAnimation, 8000);
+    }, delay);
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: translateY.value },
+      { translateX: translateX.value },
+    ],
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Animated.View style={[{ position: 'absolute', width: size, height: size, borderRadius: size / 2, backgroundColor: color }, animatedStyle]} />
+  );
+};
+
+// Interactive card with spring animation
+const SpringCard = ({ children, onPress, style, noShadow = true }: { children: React.ReactNode; onPress: () => void; style?: any; noShadow?: boolean }) => {
+  const scale = useSharedValue(1);
+  const shadow = useSharedValue(noShadow ? 0 : 8);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    const baseStyle: any = { transform: [{ scale: scale.value }] };
+    if (!noShadow) {
+      baseStyle.shadowOpacity = shadow.value / 100;
+    }
+    return baseStyle;
+  });
+
+  return (
+    <Animated.View style={[!noShadow && { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 6 }, style, animatedStyle]}>
+      <TouchableOpacity
+        activeOpacity={1}
+        onPressIn={() => {
+          scale.value = withSpring(0.97, { damping: 15, stiffness: 400 });
+          if (!noShadow) shadow.value = withTiming(4, { duration: 100 });
+        }}
+        onPressOut={() => {
+          scale.value = withSpring(1, { damping: 12, stiffness: 300 });
+          if (!noShadow) shadow.value = withTiming(8, { duration: 200 });
+        }}
+        onPress={onPress}
+      >
+        {children}
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
+// Circular animated progress
+const CircularProgress = ({ percentage, size = 80, strokeWidth = 6, color = '#6366F1', children }: any) => {
+  const animatedPercentage = useSharedValue(0);
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+
+  useEffect(() => {
+    animatedPercentage.value = withTiming(percentage, { duration: 1500, easing: Easing.out(Easing.cubic) });
+  }, [percentage]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    const strokeDashoffset = circumference - (animatedPercentage.value / 100) * circumference;
+    return { strokeDashoffset };
+  });
+
+  return (
+    <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
+      <Svg width={size} height={size} style={{ transform: [{ rotate: '-90deg' }], position: 'absolute' }}>
+        <Defs>
+          <SvgLinearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <Stop offset="0%" stopColor={color} />
+            <Stop offset="100%" stopColor={color} stopOpacity={0.6} />
+          </SvgLinearGradient>
+        </Defs>
+        <Circle cx={size / 2} cy={size / 2} r={radius} stroke="rgba(128,128,128,0.08)" strokeWidth={strokeWidth} fill="none" />
+        <AnimatedCircle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="url(#progressGradient)"
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeLinecap="round"
+          fill="none"
+          animatedProps={animatedStyle}
+        />
+      </Svg>
+      <View style={{ justifyContent: 'center', alignItems: 'center' }}>{children}</View>
+    </View>
+  );
+};
+
+// Animated Circle for SVG
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+// Glowing orb effect
+const GlowingOrb = ({ color = '#6366F1', size = 60 }) => {
+  const pulse = useSharedValue(0.5);
+  const glow = useSharedValue(0);
+
+  useEffect(() => {
+    pulse.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 2000 }),
+        withTiming(0.5, { duration: 2000 })
+      ),
+      -1,
+      false
+    );
+    glow.value = withRepeat(
+      withSequence(
+        withTiming(20, { duration: 2000 }),
+        withTiming(10, { duration: 2000 })
+      ),
+      -1,
+      false
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulse.value }],
+    shadowRadius: glow.value,
+  }));
+
+  return (
+    <Animated.View style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: color, shadowColor: color, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8 }, animatedStyle]} />
+  );
+};
+
+// ─── MAIN COMPONENT ─────────────────────────────────────────────────────────
 export default function StudyScreen() {
-  // const temp_app=true;
-  // if(temp_app){
-  //   return(<Text>StudyScreen</Text>);
-  // }
   const insets = useSafeAreaInsets();
-
   const { colors, isDark } = useTheme();
-  const styles = React.useMemo(() => createStyles(colors), [colors]);
+  const styles = React.useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   const { user } = useAuth();
-  const { isPro } = useRevenueCat(); // Get real-time status
+  const { isPro } = useRevenueCat();
   const { exam } = useExam();
 
-
-  const {
-    data: rawQuizModes,
-    isLoading: isQuizModesLoading,
-    isError: isQuizModesError,
-    error: quizModesError
-  } = useQuizModes();
+  const { data: rawQuizModes, isLoading: isQuizModesLoading } = useQuizModes();
   const quizModes = Array.isArray(rawQuizModes) ? enrichModesFromLocal(rawQuizModes) : [];
-  console.log(quizModes)
 
   const [studiedDays, setStudiedDays] = useState<number[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [readNotificationIds, setReadNotificationIds] = useState<string[]>([]);
   const [isNotificationsModalVisible, setIsNotificationsModalVisible] = useState(false);
   const [expandedNotifications, setExpandedNotifications] = useState<string[]>([]);
-  const [calendarMonth, setCalendarMonth] = useState(() => {
-    const today = new Date();
-    return new Date(today.getFullYear(), today.getMonth(), 1);
-  });
-  const [loadingCalendar, setLoadingCalendar] = useState(false);
-  const [freeProgress, setFreeProgress] = useState({ total: 0, consumed: 0, loading: true });
   const [examProgress, setExamProgress] = useState({ total: 0, correct: 0, loading: true });
+  const [quoteIndex] = useState(() => Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length));
 
-  // Fetch exam-wide progress (correct / total) — works for both free and pro users
+  // Animation values
+  const headerBgOpacity = useSharedValue(0);
+  const quoteFloat = useSharedValue(0);
+  const quoteScale = useSharedValue(1);
+  const quoteOpacity = useSharedValue(1);
+  const bellPulse = useSharedValue(1);
+
+  const glowPulse = useSharedValue(0.4);
+  const shineTranslate = useSharedValue(-200);
+
+  // Continuous animations
+  useEffect(() => {
+    quoteFloat.value = withRepeat(
+      withTiming(-4, { duration: 2400, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+
+    glowPulse.value = withRepeat(
+      withTiming(0.9, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+
+    shineTranslate.value = withRepeat(
+      withSequence(
+        withTiming(220, { duration: 1400, easing: Easing.bezier(0.4, 0, 0.2, 1) }),
+        withDelay(3000, withTiming(-220, { duration: 0 }))
+      ),
+      -1,
+      false
+    );
+  }, []);
+
+  const glowAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: glowPulse.value,
+      transform: [{ scale: interpolate(glowPulse.value, [0.4, 0.9], [0.96, 1.06]) }],
+    };
+  });
+
+  const shineAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: shineTranslate.value },
+        { rotate: '-30deg' },
+      ],
+    };
+  });
+
+  // Unread notifications pulse
+  const unreadCount = notifications.filter((n) => !readNotificationIds.includes(n.id)).length;
+  useEffect(() => {
+    if (unreadCount > 0) {
+      bellPulse.value = withRepeat(
+        withSequence(
+          withTiming(1.15, { duration: 300 }),
+          withTiming(1, { duration: 300 })
+        ),
+        -1,
+        true
+      );
+    } else {
+      bellPulse.value = withTiming(1, { duration: 200 });
+    }
+  }, [unreadCount]);
+
+
+
+  // Fetch exam progress
   useEffect(() => {
     const fetchExamProgress = async () => {
       if (!user || !exam) {
         setExamProgress(prev => ({ ...prev, loading: false }));
-        setFreeProgress(prev => ({ ...prev, loading: false }));
         return;
       }
       setExamProgress(prev => ({ ...prev, loading: true }));
-      if (!isPro) setFreeProgress(prev => ({ ...prev, loading: true }));
       try {
-        // 1. Total questions for this exam (scoped by user plan)
-        let totalQuery = supabase
-          .from('questions')
-          .select('*', { count: 'exact', head: true })
-          .eq('exam', exam.id);
+        let totalQuery = supabase.from('questions').select('*', { count: 'exact', head: true }).eq('exam', exam.id);
+        if (!isPro) totalQuery = totalQuery.eq('is_premium', false);
+        const { count: totalCount } = await totalQuery;
 
-        if (!isPro) {
-          totalQuery = totalQuery.eq('is_premium', false);
-        }
-
-        const { count: totalCount, error: totalError } = await totalQuery;
-        if (totalError) throw totalError;
-
-        // 2. Unique questions answered CORRECTLY by this user for this exam
         let answeredQuery = supabase
           .from('user_answers')
           .select('question_id, questions!inner(id, exam, is_premium)')
           .eq('user_id', user.id)
           .eq('is_correct', true)
           .eq('questions.exam', exam.id);
-
-        if (!isPro) {
-          answeredQuery = answeredQuery.eq('questions.is_premium', false);
-        }
-
-        const { data: answeredData, error: ansError } = await answeredQuery;
-        if (ansError) throw ansError;
+        if (!isPro) answeredQuery = answeredQuery.eq('questions.is_premium', false);
+        const { data: answeredData } = await answeredQuery;
 
         const uniqueCorrect = new Set((answeredData || []).map((a: any) => a.question_id)).size;
-        const total = totalCount || 0;
+        setExamProgress({ total: totalCount || 0, correct: uniqueCorrect, loading: false });
 
-        setExamProgress({ total, correct: uniqueCorrect, loading: false });
-
-        // Also update freeProgress for free users (used by the quick stat card)
-        if (!isPro) {
-          setFreeProgress({ total, consumed: uniqueCorrect, loading: false });
-        } else {
-          setFreeProgress(prev => ({ ...prev, loading: false }));
-        }
-
-        // Prefetch offline questions when exam resolves
-        if (exam?.id) {
-          prefetchOfflineBank(exam.id, user.id, isPro);
-        }
-
+        if (exam?.id) prefetchOfflineBank(exam.id, user.id, isPro);
       } catch (err) {
-        console.error('Error fetching exam progress:', err);
+        console.error('Error:', err);
         setExamProgress(prev => ({ ...prev, loading: false }));
-        setFreeProgress(prev => ({ ...prev, loading: false }));
       }
     };
-
     fetchExamProgress();
   }, [user, exam, isPro]);
 
+  // Fetch notifications
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('notifications')
           .select('*')
           .eq('is_active', true)
           .or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`)
           .order('created_at', { ascending: false });
 
-        if (error) {
-          console.error('Error fetching notifications:', error);
-          return;
-        }
-
-        const filtered = (data || []).filter(
-          (n) => n.target_platform === 'all' || n.target_platform === Platform.OS
-        );
+        const filtered = (data || []).filter((n) => n.target_platform === 'all' || n.target_platform === Platform.OS);
         setNotifications(filtered);
 
         const readIdsStr = await AsyncStorage.getItem('read_notifications');
-        if (readIdsStr) {
-          setReadNotificationIds(JSON.parse(readIdsStr));
-        }
+        if (readIdsStr) setReadNotificationIds(JSON.parse(readIdsStr));
       } catch (err) {
-        console.error('Notifications fetch failed:', err);
+        console.error('Notifications error:', err);
       }
     };
     fetchNotifications();
   }, []);
-
-  const unreadCount = notifications.filter((n) => !readNotificationIds.includes(n.id)).length;
 
   const toggleExpandNotification = async (id: string) => {
     let newReadIds = [...readNotificationIds];
@@ -347,29 +498,12 @@ export default function StudyScreen() {
       setReadNotificationIds(newReadIds);
       await AsyncStorage.setItem('read_notifications', JSON.stringify(newReadIds));
     }
-
     if (expandedNotifications.includes(id)) {
       setExpandedNotifications(expandedNotifications.filter((i) => i !== id));
     } else {
       setExpandedNotifications([...expandedNotifications, id]);
     }
   };
-
-
-  const progressWidth = useSharedValue(0);
-
-  useEffect(() => {
-    if (examProgress.total > 0) {
-      const percentage = Math.min((examProgress.correct / examProgress.total) * 100, 100);
-      progressWidth.value = withTiming(percentage, { duration: 1000, easing: Easing.out(Easing.exp) });
-    }
-  }, [examProgress]);
-
-  const animatedProgressStyle = useAnimatedStyle(() => {
-    return {
-      width: `${progressWidth.value}%`,
-    };
-  });
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -378,1140 +512,1021 @@ export default function StudyScreen() {
     return 'Good Evening';
   };
 
-  const getDaysInMonth = (date: Date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    return Array.from({ length: daysInMonth }, (_, i) => i + 1);
-  };
-
-  const getMonthName = (date: Date) =>
-    date.toLocaleString('default', { month: 'long', year: 'numeric' });
-
-  useEffect(() => {
-    // Fetch quiz sessions for the displayed month and mark days with sessions as studied
-    const fetchStudiedDays = async () => {
-      if (!user) return;
-      setLoadingCalendar(true);
-      const month = calendarMonth.getMonth() + 1;
-      const year = calendarMonth.getFullYear();
-      const daysInMonth = new Date(year, month, 0).getDate();
-      const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
-      const endDate = `${year}-${month.toString().padStart(2, '0')}-${daysInMonth}`;
-      const { data, error } = await supabase
-        .from('quiz_sessions')
-        .select('created_at')
-        .eq('user_id', user.id)
-        .eq('exam_id', exam.id)
-        .gte('created_at', `${startDate}T00:00:00`)
-        .lte('created_at', `${endDate}T23:59:59`);
-      // console.log('Supabase quiz_sessions data:', data, 'error:', error);
-      if (!error && data) {
-        // Extract unique days from created_at timestamps
-        const daysSet = new Set<number>();
-        data.forEach((row: any) => {
-          const d = new Date(row.created_at);
-          // console.log('Session row:', row.created_at, '->', d.getFullYear(), d.getMonth() + 1, d.getDate());
-          if (
-            d.getFullYear() === year &&
-            d.getMonth() + 1 === month
-          ) {
-            daysSet.add(d.getDate());
-          }
-        });
-        const studiedArr = Array.from(daysSet);
-        // console.log('Fetched studied days:', studiedArr);
-        setStudiedDays(studiedArr);
-      } else {
-        setStudiedDays([]);
-      }
-      setLoadingCalendar(false);
-    };
-    fetchStudiedDays();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, calendarMonth]);
-
   const handleQuizMode = async (mode: any) => {
-    // Use isPro for instant real-time check. 
-    // user.subscription_status might be slightly stale if AuthContext hasn't refreshed.
     if (mode.isPremium && !isPro) {
-      Alert.alert(
-        'Premium Feature',
-        'This quiz mode is available with a premium subscription.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Upgrade', onPress: () => router.push('/subscription') },
-        ]
-      );
+      Alert.alert('Premium Feature', 'Unlock with Enliten Pro for $2.99/month', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Upgrade', onPress: () => router.push('/subscription') },
+      ]);
       return;
     }
-
-    // ... rest of function
-
     try {
-      // Create session at quiz start
-      // const { data, error } = await supabase
-      //   .from('quiz_sessions')
-      //   .insert([
-      //     {
-      //       user_id: user?.id,
-      //       quiz_type: mode.id,
-      //       created_at: new Date().toISOString(),
-      //     },
-      //   ])
-      //   .select()
-      //   .single();
-      // if (error) {
-      //   console.error('Failed to create quiz session:', error);
-      //   Alert.alert('Error', 'Could not start quiz session.');
-      //   return;
-      // }
-      if (mode.id === 'daily') {
-        router.push('/quiz/daily');
-      } else if (mode.id === 'level_up') {
-        router.push('/quiz/levelup');
-      } else if (mode.id === 'flashcard' || mode.id === 'adaptive') {
-        router.push('/flashcards');
-      }
-      else {
-        router.push(`/quiz/${mode.id}`);
-      }
+      if (mode.id === 'daily') router.push('/quiz/daily');
+      else if (mode.id === 'level_up') router.push('/quiz/levelup');
+      else if (mode.id === 'flashcard') router.push('/flashcards');
+      else router.push(`/quiz/${mode.id}`);
     } catch (err) {
-      console.error('Unexpected error creating quiz session:', err);
-      Alert.alert('Error', 'Could not start quiz session.');
+      Alert.alert('Error', 'Could not start quiz.');
     }
   };
 
-  const handleShortcut = (shortcut: typeof SHORTCUTS[0]) => {
-    if (shortcut.id === 'ai_mentor') {
-      router.push('/ai-mentor');
-    } else if (shortcut.id === 'digital_store') {
-      router.push('/subscription');
-    } else if (shortcut.id === 'doubt_solver') {
-      Alert.alert(
-        'Doubt Solver',
-        'Take a photo of any question or equation, and get instant step-by-step solutions from AI. Launching in the next build!',
-        [{ text: 'Awesome', style: 'default' }]
-      );
-    } else if (shortcut.id === 'study_planner') {
-      Alert.alert(
-        'Study Planner',
-        'Plan your learning schedule and set study milestones automatically with AI. Launching in the next build!',
-        [{ text: 'Sounds Good', style: 'default' }]
-      );
+  const handleShortcut = (shortcut: any) => {
+    if (shortcut.id === 'ai_mentor') router.push('/ai-mentor');
+    else if (shortcut.id === 'digital_store') router.push('/subscription');
+    else if (shortcut.id === 'doubt_solver' || shortcut.id === 'study_planner') {
+      Alert.alert(shortcut.title, `${shortcut.title} is coming in the next update! 🚀`, [{ text: 'Got it!', style: 'default' }]);
     }
   };
 
+  // Animated styles
+  const quoteAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: quoteFloat.value }, { scale: quoteScale.value }],
+    opacity: quoteOpacity.value,
+  }));
 
+  const bellAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: bellPulse.value }],
+  }));
+
+  const progressPercentage = examProgress.total > 0 ? Math.min((examProgress.correct / examProgress.total) * 100, 100) : 0;
 
   return (
-    <LinearGradient colors={[colors.gradientStart, colors.gradientEnd]} style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={{ flex: 1, paddingBottom: insets.bottom + 90 }}>
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
-          {/* Enhanced Header */}
-          <Animated.View entering={FadeInDown.duration(600).delay(100)} style={styles.header}>
-            <View style={styles.headerTopRow}>
-              <View style={styles.userInfoContainer}>
-                <View style={styles.avatarWrapper}>
-                  {user?.avatar_url ? (
-                    <Image source={{ uri: user.avatar_url }} style={[styles.userAvatar, isPro && styles.userAvatarPro]} />
-                  ) : (
-                    <View style={[styles.userAvatarPlaceholder, { backgroundColor: colors.primary }, isPro && styles.userAvatarPro]}>
-                      <Text style={styles.userAvatarText}>
-                        {user?.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'}
-                      </Text>
-                    </View>
-                  )}
-                  {isPro && (
-                    <View style={styles.proCrownBadge}>
-                      <Crown size={12} color="#FFFFFF" strokeWidth={2.5} />
-                    </View>
-                  )}
-                </View>
-                <View style={styles.userGreetingTextContainer}>
-                  <Text style={[styles.greetingSubtext, { color: colors.subText }]}>{getGreeting()}</Text>
-                  <Text style={[styles.greetingTitle, { color: colors.text }]} numberOfLines={1}>
-                    {user?.full_name ? user.full_name : 'Ready to learn?'}
+    <View style={styles.container}>
+      {/* ─── ULTRA-MODERN TOP NAVIGATION ─── */}
+      <BlurView intensity={Platform.OS === 'ios' ? 60 : 90} tint={isDark ? 'dark' : 'light'} style={[styles.topNav, { paddingTop: insets.top + 4 }]}>
+        <View style={styles.topNavContent}>
+          {/* Left section: Avatar + Logo */}
+          <Animated.View entering={FadeInLeft.delay(200)} style={styles.navLeft}>
+            <View style={styles.avatarWrapper}>
+              {user?.avatar_url ? (
+                <Image source={{ uri: user.avatar_url }} style={[styles.userAvatar, isPro && styles.userAvatarPro]} />
+              ) : (
+                <View style={[styles.userAvatarPlaceholder, { backgroundColor: '#8B5CF6' }, isPro && styles.userAvatarPro]}>
+                  <Text style={styles.userAvatarText}>
+                    {user?.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'}
                   </Text>
                 </View>
-              </View>
-
-              <View style={styles.headerActions}>
-                <TouchableOpacity onPress={() => setIsNotificationsModalVisible(true)} style={styles.bellIconContainer}>
-                  <Bell size={22} color={colors.text} strokeWidth={2} />
-                  {unreadCount > 0 && (
-                    <View style={styles.notificationBadge} />
-                  )}
-                </TouchableOpacity>
-              </View>
+              )}
+              {isPro && (
+                <View style={styles.proCrownBadge}>
+                  <Crown size={10} color="#FFFFFF" strokeWidth={2.5} />
+                </View>
+              )}
             </View>
+            <Text style={[styles.logoText, { color: colors.text }]}>
+              Enliten<Text style={{ color: colors.primary }}>.ai</Text>
+            </Text>
           </Animated.View>
 
-          {/* Quick Stats Row */}
-          <Animated.View entering={FadeInDown.duration(600).delay(200)} style={styles.quickStatsRow}>
-            <TouchableOpacity style={[styles.quickStatCard]} onPress={() => router.push('/exam-selection')} activeOpacity={0.7}>
-              <View style={styles.quickStatIconRow}>
-                <Target size={20} color="#F59E0B" strokeWidth={2} />
-                <ChevronRight size={14} color={colors.subText} style={{ opacity: 0.6 }} />
-              </View>
-              <Text style={[styles.quickStatValue, { color: colors.text }]} numberOfLines={1}>{exam ? exam.short_name : '—'}</Text>
-              <Text style={[styles.quickStatLabel, { color: "#F59E0B", opacity: 0.8 }]}>Tap to change</Text>
+          {/* Right actions */}
+          <Animated.View entering={FadeInRight.delay(300)} style={styles.navActions}>
+            {/* Streak pill */}
+            <TouchableOpacity activeOpacity={0.8} style={styles.streakPill}>
+              <LottieView source={require('@/assets/animations/Fire Streak Orange.json')} autoPlay loop style={styles.streakAnim} />
+              <Text style={[styles.streakCount, { color: colors.text }]}>{studiedDays.length}</Text>
             </TouchableOpacity>
-            <View style={styles.quickStatCard}>
-              <Flame size={20} color={'#F97316'} strokeWidth={2} />
-              <Text style={[styles.quickStatValue, { color: colors.text }]}>{studiedDays.length}</Text>
-              <Text style={[styles.quickStatLabel, { color: colors.subText }]}>Days Active</Text>
-            </View>
-            {examProgress.total > 0 && (
-              <View style={styles.quickStatCard}>
-                <Layers size={20} color={isPro ? colors.primary : colors.secondary} strokeWidth={2} />
-                <Text style={[styles.quickStatValue, { color: colors.text }]}>{Math.max(0, examProgress.total - examProgress.correct)}</Text>
-                <Text style={[styles.quickStatLabel, { color: colors.subText }]}>Qs Left</Text>
-              </View>
-            )}
 
+            {/* Notification bell */}
+            <TouchableOpacity activeOpacity={0.8} onPress={() => setIsNotificationsModalVisible(true)} style={styles.bellBtn}>
+              <Animated.View style={bellAnimatedStyle}>
+                <Bell size={20} color={colors.text} strokeWidth={2} />
+              </Animated.View>
+              {unreadCount > 0 && <View style={styles.notificationBadge} />}
+            </TouchableOpacity>
           </Animated.View>
-          {/* Calendar & Shortcuts Row */}
-          <View style={styles.responsiveSectionRow}>
-            {/* Study Progress Section (Calendar) */}
-            <Animated.View entering={FadeInDown.duration(600).delay(300)} style={styles.calendarColumn}>
-              <Text style={styles.sectionTitle}>Study Streak</Text>
-              <View style={styles.calendarContainer}>
-                {/* Month navigation */}
-                <View style={styles.calendarHeader}>
-                  <TouchableOpacity
-                    onPress={() => setCalendarMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
-                    style={styles.calendarMonthBtn}
-                    accessibilityLabel="Previous Month"
-                  >
-                    <ChevronLeft size={18} color={colors.subText} strokeWidth={2.5} />
-                  </TouchableOpacity>
-                  <View style={styles.calendarMonthCenter}>
-                    <Text style={[styles.calendarMonthText, { color: colors.text }]}>
-                      {getMonthName(calendarMonth)}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => setCalendarMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
-                    style={styles.calendarMonthBtn}
-                    accessibilityLabel="Next Month"
-                  >
-                    <ChevronRight size={18} color={colors.subText} strokeWidth={2.5} />
-                  </TouchableOpacity>
-                </View>
-                {/* Weekday labels */}
-                <View style={styles.weekdayRow}>
-                  {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
-                    <View key={i} style={styles.weekdayCell}>
-                      <Text style={[styles.weekdayLabel, { color: colors.subText }]}>{d}</Text>
-                    </View>
-                  ))}
-                </View>
-                <View style={styles.calendarGrid}>
-                  {/* Empty slots for offset */}
-                  {Array.from({ length: new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1).getDay() }).map((_, i) => (
-                    <View key={`empty-${i}`} style={styles.calendarDayEmpty} />
-                  ))}
-                  {getDaysInMonth(calendarMonth).map((day) => {
-                    const dateObj = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), day);
-                    const isToday = (() => {
-                      const now = new Date();
-                      return (
-                        dateObj.getFullYear() === now.getFullYear() &&
-                        dateObj.getMonth() === now.getMonth() &&
-                        dateObj.getDate() === now.getDate()
-                      );
-                    })();
-                    const isStudied = studiedDays.includes(day);
-                    return (
-                      <View
-                        key={day}
-                        style={[
-                          styles.calendarDay,
-                          isStudied && styles.studiedDay,
-                          isToday && styles.todayDay,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.calendarDayText,
-                            isStudied && styles.studiedDayText,
-                            isToday && styles.todayDayText,
-                          ]}
-                        >
-                          {day}
-                        </Text>
-                      </View>
-                    );
-                  })}
-                </View>
-                <View style={styles.calendarLegend}>
-                  <View style={styles.legendItem}>
-                    <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
-                    <Text style={styles.legendText}>Today</Text>
-                  </View>
-                  <View style={[styles.legendItem, { marginLeft: 20 }]}>
-                    <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
-                    <Text style={styles.legendText}>Studied</Text>
-                  </View>
-                </View>
-              </View>
-            </Animated.View>
+        </View>
+      </BlurView>
 
-            {/* Shortcuts Section */}
-            <Animated.View entering={FadeInDown.duration(600).delay(350)} style={styles.shortcutsColumn}>
-              <Text style={styles.sectionTitle}>Quick Tools</Text>
-              <View style={styles.shortcutsContainer}>
-                {SHORTCUTS.map((shortcut) => {
-                  const Icon = shortcut.icon;
-                  return (
-                    <TouchableOpacity
-                      key={shortcut.id}
-                      style={[styles.shortcutCard, { borderColor: shortcut.borderColor }]}
-                      onPress={() => handleShortcut(shortcut)}
-                      activeOpacity={0.7}
-                    >
-                      <LinearGradient
-                        colors={shortcut.bgGradient}
-                        style={shortcut.bgGradient ? styles.shortcutGradient : {}}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                      >
-                        <View style={styles.shortcutHeaderRow}>
-                          <View style={[styles.shortcutIconContainer, { backgroundColor: shortcut.color }]}>
-                            <Icon size={20} color="#FFFFFF" strokeWidth={2.2} />
-                          </View>
-                          <ChevronRight size={14} color={colors.subText} style={{ opacity: 0.6 }} />
-                        </View>
-                        <View style={styles.shortcutTextContainer}>
-                          <Text style={[styles.shortcutTitle, { color: colors.text }]}>
-                            {shortcut.title}
-                          </Text>
-                          <Text style={[styles.shortcutDesc, { color: colors.subText }]} numberOfLines={1}>
-                            {shortcut.description}
-                          </Text>
-                        </View>
-                      </LinearGradient>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </Animated.View>
+      {/* ─── MAIN CONTENT ─── */}
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: insets.top + 60, paddingBottom: insets.bottom + 100, paddingHorizontal: 20 }}
+      >
+        {/* ─── HERO SECTION ─── */}
+        <Animated.View entering={FadeInDown.duration(700).delay(100)} style={styles.heroSection}>
+          <View style={styles.heroLeft}>
+            <Text style={styles.heroGreeting}>{getGreeting()}</Text>
+            <Animated.Text entering={FadeInLeft.duration(600).delay(200)} style={styles.heroName}>
+              {user?.full_name ? user.full_name.split(' ')[0] : 'Learner'}
+            </Animated.Text>
+            {exam && (
+              <TouchableOpacity activeOpacity={0.8} onPress={() => router.push('/exam-selection')} style={styles.examBadge}>
+                <Target size={12} color="#0EA5E9" />
+                <Text style={styles.examBadgeText}>{exam.short_name}</Text>
+                <ChevronRight size={10} color="#0EA5E9" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </Animated.View>
+
+        {/* ─── MINIMALIST QUOTE ─── */}
+        <Animated.View entering={FadeInUp.duration(700).delay(150)} style={styles.quoteWrapper}>
+          <View style={styles.minimalQuoteContainer}>
+            <View style={styles.minimalQuoteContentRow}>
+              <Quote size={28} color="#3B82F6" strokeWidth={3} style={styles.minimalQuoteIcon} />
+              <Animated.View style={[styles.minimalQuoteTextContainer, quoteAnimatedStyle]}>
+                <Text style={styles.minimalQuoteText}>
+                  {MOTIVATIONAL_QUOTES[quoteIndex].text}
+                </Text>
+                <Text style={styles.minimalQuoteAuthor}>
+                  {MOTIVATIONAL_QUOTES[quoteIndex].author}
+                </Text>
+              </Animated.View>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* ─── PROGRESS DASHBOARD ─── */}
+        {!examProgress.loading && examProgress.total > 0 && (
+          <Animated.View entering={FadeInDown.duration(700).delay(250)}>
+            <SpringCard onPress={() => router.push('/profile')} style={styles.progressCard}>
+              <LinearGradient colors={[colors.card, colors.card]} style={styles.progressCardInner}>
+                <View style={styles.progressHeader}>
+                  <View style={styles.progressTitleRow}>
+                    <View style={styles.progressIconContainer}>
+                      <LottieView source={require('@/assets/animations/read book.json')} autoPlay loop style={styles.progressLottieAnim} />
+                    </View>
+                    <View>
+                      <Text style={styles.progressTitleText}>Practice Progress</Text>
+                      <Text style={styles.progressSubtitleText}>{exam?.short_name || 'Your Exam'}</Text>
+                    </View>
+                  </View>
+                  <CircularProgress percentage={progressPercentage} size={70} strokeWidth={5} color={colors.primary}>
+                    <Text style={styles.progressPercentText}>{Math.round(progressPercentage)}%</Text>
+                  </CircularProgress>
+                </View>
+
+                <View style={styles.progressStatsRow}>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>{examProgress.correct}</Text>
+                    <Text style={styles.statLabel}>Completed</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>{examProgress.total - examProgress.correct}</Text>
+                    <Text style={styles.statLabel}>Remaining</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>{examProgress.total}</Text>
+                    <Text style={styles.statLabel}>Total</Text>
+                  </View>
+                </View>
+
+                {!isPro && (
+                  <TouchableOpacity activeOpacity={0.8} onPress={() => router.push('/subscription')} style={styles.upgradeBanner}>
+                    <Crown size={14} color="#F59E0B" />
+                    <Text style={styles.upgradeBannerText}>Unlock all questions & premium modes</Text>
+                    <ChevronRight size={14} color="#F59E0B" />
+                  </TouchableOpacity>
+                )}
+              </LinearGradient>
+            </SpringCard>
+          </Animated.View>
+        )}
+
+        {/* ─── NO PROGRESS - SHOW PREMIUM CTA ─── */}
+        {!isPro && examProgress.loading === false && examProgress.total === 0 && (
+          <Animated.View entering={FadeInDown.duration(700).delay(250)}>
+            <SpringCard onPress={() => router.push('/subscription')} style={styles.premiumCtaCard}>
+              <LinearGradient colors={['rgba(245,158,11,0.15)', 'rgba(245,158,11,0.05)']} style={styles.premiumCtaInner}>
+                <View style={styles.premiumCtaContent}>
+                  <View style={styles.premiumCtaIcon}>
+                    <Crown size={28} color="#F59E0B" />
+                  </View>
+                  <View style={styles.premiumCtaText}>
+                    <Text style={styles.premiumCtaTitle}>Start Your Journey</Text>
+                    <Text style={styles.premiumCtaSubtitle}>Unlock all quiz modes & features</Text>
+                  </View>
+                  <View style={styles.premiumCtaArrow}>
+                    <ChevronRight size={22} color="#F59E0B" />
+                  </View>
+                </View>
+              </LinearGradient>
+            </SpringCard>
+          </Animated.View>
+        )}
+
+        {/* ─── QUICK TOOLS GRID ─── */}
+        <Animated.View entering={FadeInDown.duration(700).delay(350)}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Quick Tools</Text>
+            <View style={styles.sectionAccent} />
           </View>
 
-          {/* Exam Progress Card (Both Free & Pro Users) */}
-          {!examProgress.loading && examProgress.total > 0 && (
-            <Animated.View entering={FadeInDown.duration(600).delay(400)}>
-              <View style={styles.progressContainer}>
-                <View style={styles.progressHeader}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <View style={styles.examProgressIcon}>
-                      <BookOpen size={16} color={colors.primary} strokeWidth={2.5} />
-                    </View>
-                    <Text style={styles.progressTitle}>Exam Progress</Text>
-                  </View>
-                  <Text style={styles.progressCount}>
-                    {examProgress.correct}<Text style={{ color: colors.subText, fontSize: 14, fontWeight: '500' }}> / {examProgress.total}</Text>
-                  </Text>
-                </View>
-                <View style={styles.progressBarBg}>
-                  <Animated.View
-                    style={[
-                      styles.progressBarFill,
-                      animatedProgressStyle,
-                      examProgress.total > 0 && examProgress.correct === examProgress.total && { backgroundColor: '#10B981' }
-                    ]}
-                  />
-                </View>
-                <View style={styles.progressFooterRow}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <CheckCircle size={14} color={'#10B981'} strokeWidth={2.5} />
-                    <Text style={styles.progressFooter}>
-                      {Math.max(0, examProgress.total - examProgress.correct)} questions remaining
-                    </Text>
-                  </View>
-                  {!isPro && (
-                    <TouchableOpacity onPress={() => router.push('/subscription')} style={styles.upgradeChip}>
-                      <Crown size={12} color="#F59E0B" strokeWidth={2.5} />
-                      <Text style={[styles.upgradeChipText, { color: "#F59E0B" }]}>Upgrade</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-                {examProgress.total > 0 && (
-                  <Text style={styles.progressPercentage}>
-                    {Math.round((examProgress.correct / examProgress.total) * 100)}% Complete
-                  </Text>
-                )}
-              </View>
-            </Animated.View>
-          )}
-
-          {/* Premium Subscription Banner (Free users only, shown when no progress data) */}
-          {!isPro && (examProgress.loading || examProgress.total === 0) && (
-            <Animated.View entering={FadeInDown.duration(600).delay(400)}>
-              <TouchableOpacity onPress={() => router.push('/subscription')} style={[styles.premiumBanner, { backgroundColor: colors.card }]}>
-                <View style={styles.premiumGradient}>
-                  <View style={styles.premiumBannerIconContainer}>
-                    <Crown size={24} color="#F59E0B" strokeWidth={2} />
-                  </View>
-                  <View style={styles.premiumBannerTextContainer}>
-                    <Text style={[styles.premiumTextHeader, { color: colors.text }]}>Unlock Premium</Text>
-                    <Text style={[styles.premiumTextSub, { color: colors.subText }]}>Get all 6 advanced quiz modes</Text>
-                  </View>
-                  <View style={[styles.premiumArrowBox, { backgroundColor: colors.inputBg }]}>
-                    <ChevronRight size={20} color="#F59E0B" />
-                  </View>
-                </View>
-              </TouchableOpacity>
-            </Animated.View>
-          )}
-
-          {/* Quiz Modes */}
-          <Animated.View entering={FadeInDown.duration(600).delay(500)} style={styles.quizModesContainer}>
-            <Text style={styles.sectionTitle}>Quiz Modes</Text>
-
-            {(isQuizModesLoading) &&
-              (
-
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                  <SpinnerAnimation color={colors.primary} />
-                </View>
-              )
-            }
-
-            {quizModes?.sort((a, b) => a.order_index - b.order_index)?.map((mode: any, index: number) => {
-              const IconComponent = mode.icon;
-
-              if (mode.is_active) {
-                return (
-                  <Animated.View key={mode.id} entering={FadeInDown.duration(400).delay(550 + (index * 50))}>
-                    <TouchableOpacity
-                      style={[styles.quizModeCard, !isPro && mode.isPremium ? { opacity: 0.85 } : {}]}
-                      onPress={() => handleQuizMode(mode)}
-                    >
-                      <View style={styles.quizModeContent}>
-                        <View style={[styles.quizModeIcon, { backgroundColor: mode.color }]}>
-                          <IconComponent size={24} color="#FFFFFF" strokeWidth={2} />
+          <View style={styles.toolsGrid}>
+            {QUICK_TOOLS.map((tool, index) => {
+              const IconComponent = tool.icon;
+              return (
+                <Animated.View key={tool.id} entering={FadeInUp.duration(500).delay(400 + index * 80)} style={styles.toolCardWrapper}>
+                  <SpringCard onPress={() => handleShortcut(tool)} style={[styles.toolCard, { borderColor: tool.gradient[0] + '30' }]}>
+                    <LinearGradient colors={[tool.gradient[0] + '12', tool.gradient[0] + '03']} style={styles.toolCardInner}>
+                      <View style={styles.toolHeader}>
+                        <View style={[styles.toolIconBg, { backgroundColor: tool.gradient[0] }]}>
+                          <IconComponent size={20} color="#FFFFFF" strokeWidth={2} />
                         </View>
-                        <View style={styles.quizModeText}>
-                          <Text style={[styles.quizModeTitle, !isPro && mode.isPremium && { color: colors.subText }]}>{mode.title}</Text>
-                          <Text style={styles.quizModeSubtitle}>
-                            {mode.subtitle}
-                          </Text>
-                        </View>
-                        {mode.isPremium && (
-                          <View style={[styles.premiumBadge, isPro && { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
-                            {isPro ? (
-                              <Target size={14} color="#10B981" />
-                            ) : (
-                              <Crown size={14} color="#F59E0B" strokeWidth={2.5} />
-                            )}
-                            <Text style={[styles.premiumBadgeText, isPro && { color: '#10B981' }]}>
-                              {isPro ? 'Unlocked' : 'Premium'}
-                            </Text>
+                        {tool.live && (
+                          <View style={styles.liveBadge}>
+                            <PulseDot />
+                            <Text style={styles.liveText}>LIVE</Text>
+                          </View>
+                        )}
+                        {tool.new && (
+                          <View style={styles.newBadge}>
+                            <Text style={styles.newText}>NEW</Text>
+                          </View>
+                        )}
+                        {tool.badge && (
+                          <View style={styles.proBadge}>
+                            <Text style={styles.proText}>{tool.badge}</Text>
                           </View>
                         )}
                       </View>
-                    </TouchableOpacity>
-                  </Animated.View>
-                );
-              }
+                      <Text style={styles.toolTitle}>{tool.title}</Text>
+                      <Text style={styles.toolDesc}>{tool.desc}</Text>
+                    </LinearGradient>
+                  </SpringCard>
+                </Animated.View>
+              );
             })}
-          </Animated.View>
-        </ScrollView>
-
-        {/* Daily Question Modal */}
-
-        {/* Notifications Modal */}
-        <Modal
-          visible={isNotificationsModalVisible}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setIsNotificationsModalVisible(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}>
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>Notifications</Text>
-                <TouchableOpacity onPress={() => setIsNotificationsModalVisible(false)} style={styles.closeModalButton}>
-                  <X size={24} color={colors.text} />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.notificationsList}>
-                {notifications.length === 0 ? (
-                  <Text style={[styles.emptyNotificationsText, { color: colors.subText }]}>No notifications right now.</Text>
-                ) : (
-                  notifications.map((notif) => {
-                    const isExpanded = expandedNotifications.includes(notif.id);
-                    const isRead = readNotificationIds.includes(notif.id);
-
-                    return (
-                      <TouchableOpacity
-                        key={notif.id}
-                        style={[
-                          styles.notificationCard,
-                          { backgroundColor: colors.card, borderColor: colors.border },
-                          !isRead && { borderColor: '#8A2BE2', borderWidth: 1 } // Primary/highlight color
-                        ]}
-                        onPress={() => toggleExpandNotification(notif.id)}
-                      >
-                        <View style={styles.notificationHeader}>
-                          <Text style={[styles.notificationTitle, { color: colors.text }]} numberOfLines={isExpanded ? undefined : 1}>
-                            {notif.title}
-                          </Text>
-                          {!isRead && <View style={styles.unreadDot} />}
-                        </View>
-
-                        <Text
-                          style={[styles.notificationMessage, { color: colors.subText }]}
-                          numberOfLines={isExpanded ? undefined : 2}
-                        >
-                          {notif.message}
-                        </Text>
-
-                        <Text style={[styles.notificationDate, { color: colors.subText }]}>
-                          {timeAgo(notif.created_at)}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })
-                )}
-              </ScrollView>
-            </View>
           </View>
-        </Modal>
+        </Animated.View>
 
-      </View>
-    </LinearGradient>
+        {/* ─── QUIZ MODES ─── */}
+        <Animated.View entering={FadeInDown.duration(700).delay(500)} style={styles.quizModesSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Quiz Modes</Text>
+            <View style={styles.sectionAccent} />
+          </View>
+
+          {isQuizModesLoading && (
+            <View style={styles.loadingContainer}>
+              <ShimmerEffect width={width - 40} height={70} borderRadius={16} />
+              <View style={{ height: 12 }} />
+              <ShimmerEffect width={width - 40} height={70} borderRadius={16} />
+              <View style={{ height: 12 }} />
+              <ShimmerEffect width={width - 40} height={70} borderRadius={16} />
+            </View>
+          )}
+
+          {quizModes?.sort((a, b) => a.order_index - b.order_index).map((mode: any, index: number) => {
+            const IconComponent = mode.icon;
+            if (!mode.is_active) return null;
+
+            return (
+              <Animated.View key={mode.id} entering={FadeInLeft.duration(500).delay(550 + index * 60)}>
+                <SpringCard onPress={() => handleQuizMode(mode)} style={[styles.quizModeCard, { backgroundColor: colors.card, borderColor: colors.border }]} noShadow>
+                  <View style={styles.quizModeRow}>
+                    <View style={[styles.quizModeIconContainer, { backgroundColor: mode.color + '15' }]}>
+                      <IconComponent size={20} color={mode.color} strokeWidth={2.5} />
+                    </View>
+                    <View style={styles.quizModeInfo}>
+                      <Text style={styles.quizModeTitle}>{mode.title}</Text>
+                      <Text style={styles.quizModeSubtitle}>{mode.subtitle}</Text>
+                    </View>
+                    {mode.isPremium ? (
+                      <View style={[styles.premiumBadge, isPro ? styles.premiumUnlocked : styles.premiumLocked]}>
+                        {isPro ? (
+                          <>
+                            <CheckCircle size={10} color="#10B981" />
+                            <Text style={styles.premiumUnlockedText}>Unlocked</Text>
+                          </>
+                        ) : (
+                          <>
+                            <Crown size={10} color="#F59E0B" />
+                            <Text style={styles.premiumLockedText}>Pro</Text>
+                          </>
+                        )}
+                      </View>
+                    ) : (
+                      <ChevronRight size={20} color={colors.subText} strokeWidth={1.5} />
+                    )}
+                  </View>
+                </SpringCard>
+              </Animated.View>
+            );
+          })}
+        </Animated.View>
+      </ScrollView>
+
+      {/* ─── FLOATING AI MENTOR BUTTON ─── */}
+      <Animated.View entering={FadeInUp.duration(500).delay(800)} style={[styles.fabContainer, { bottom: insets.bottom + 90 }]}>
+        <Animated.View style={[styles.fabGlow, glowAnimatedStyle]} />
+        <TouchableOpacity activeOpacity={0.9} onPress={() => router.push('/ai-mentor')} style={styles.fabTouchable}>
+          <LinearGradient
+            colors={[colors.primary, colors.secondary]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.fabGradient}
+          >
+            <View style={styles.fabGlossOverlay} />
+            <View style={styles.fabContentRow}>
+              {/* <LottieView
+                source={require('@/assets/animations/ai.json')}
+                autoPlay
+                loop
+                style={styles.fabLottie}
+              /> */}
+              <Sparkle size={18} color="#fff" />
+              <Text style={styles.fabText}>Ask AI Mentor</Text>
+            </View>
+            <Animated.View style={[styles.fabShine, shineAnimatedStyle]} />
+          </LinearGradient>
+        </TouchableOpacity>
+      </Animated.View>
+
+      {/* ─── NOTIFICATIONS MODAL ─── */}
+      <Modal visible={isNotificationsModalVisible} transparent animationType="slide" onRequestClose={() => setIsNotificationsModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Notifications</Text>
+              <TouchableOpacity onPress={() => setIsNotificationsModalVisible(false)} style={styles.modalCloseBtn}>
+                <X size={22} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.notificationsList}>
+              {notifications.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Bell size={48} color={colors.subText} strokeWidth={1} />
+                  <Text style={[styles.emptyText, { color: colors.subText }]}>All caught up! 🎉</Text>
+                </View>
+              ) : (
+                notifications.map((notif) => {
+                  const isExpanded = expandedNotifications.includes(notif.id);
+                  const isRead = readNotificationIds.includes(notif.id);
+
+                  return (
+                    <TouchableOpacity
+                      key={notif.id}
+                      style={[styles.notificationCard, { borderColor: isRead ? colors.border : colors.primary }]}
+                      onPress={() => toggleExpandNotification(notif.id)}
+                      activeOpacity={0.8}
+                    >
+                      {!isRead && <View style={styles.unreadIndicator} />}
+                      <Text style={styles.notificationTitleText}>{notif.title}</Text>
+                      <Text style={styles.notificationMessageText} numberOfLines={isExpanded ? undefined : 2}>{notif.message}</Text>
+                      <Text style={styles.notificationTimeText}>{new Date(notif.created_at).toLocaleDateString()}</Text>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
-const createStyles = (colors: any) => StyleSheet.create({
-  container: {
-    // paddingTop removed (dynamic)
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-    paddingHorizontal: 15,
-  },
-  header: {
-    flexDirection: 'column',
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  headerTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  userInfoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  avatarWrapper: {
-    position: 'relative' as const,
-  },
-  userAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
-  userAvatarPro: {
-    borderWidth: 2.5,
-    borderColor: '#8A2BE2',
-  },
-  proCrownBadge: {
-    position: 'absolute' as const,
-    bottom: -2,
-    right: -2,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#8A2BE2',
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-    borderWidth: 2,
-    borderColor: colors.card,
-  },
-  userAvatarPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  userAvatarText: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  userGreetingTextContainer: {
-    marginLeft: 14,
-    flex: 1,
-  },
-  greetingSubtext: {
-    fontSize: 13,
-    fontWeight: '500',
-    marginBottom: 2,
-    opacity: 0.8,
-  },
-  greetingTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  bellIconContainer: {
-    padding: 10,
-    borderRadius: 16,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  // Quick Stats Row
-  quickStatsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 24,
-  },
-  quickStatCard: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 14,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 6,
-    marginTop: 30,
-  },
-  quickStatCardTappable: {
-    borderColor: colors.primary,
-    borderStyle: 'dashed',
-  },
-  quickStatIconRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  quickStatValue: {
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-  },
-  quickStatLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  // Progress
-  progressContainer: {
-    backgroundColor: colors.card,
-    marginBottom: 20,
-    padding: 18,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  progressTitle: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  examProgressIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: 'rgba(245, 158, 11, 0.12)',
-    justifyContent: 'center',
-    alignItems: 'center' as const,
-  },
-  progressPercentage: {
-    color: colors.primary,
-    fontSize: 12,
-    fontWeight: '700' as const,
-    marginTop: 10,
-    textAlign: 'right' as const,
-    opacity: 0.85,
-  },
-  progressCount: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '800',
-  },
-  progressBarBg: {
-    height: 8,
-    backgroundColor: colors.inputBg,
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: 4,
-  },
-  progressFooterRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  progressFooter: {
-    color: colors.subText,
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  upgradeChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-  },
-  upgradeChipText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  // Calendar
-  calendarContainer: {
-    backgroundColor: colors.card,
-    padding: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    width: '100%',
-  },
-  calendarHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  calendarMonthBtn: {
-    backgroundColor: colors.inputBg,
-    borderRadius: 12,
-    padding: 8,
-  },
-  calendarMonthCenter: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  calendarMonthText: {
-    fontSize: 17,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  weekdayRow: {
-    flexDirection: 'row',
-    marginBottom: 6,
-    paddingHorizontal: 2,
-  },
-  weekdayCell: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  weekdayLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    opacity: 0.45,
-  },
-  calendarGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    rowGap: 8,
-    paddingHorizontal: 2,
-  },
-  calendarDay: {
-    width: '13%',
-    aspectRatio: 1,
-    borderRadius: 10,
-    backgroundColor: colors.inputBg,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingBottom: 8,
-  },
-  calendarDayEmpty: {
-    width: '13%',
-    aspectRatio: 1,
-  },
-  studiedDay: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(16, 185, 129, 0.35)',
-  },
-  todayDay: {
-    backgroundColor: colors.primary,
-    borderWidth: 0,
-  },
-  calendarDayText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    opacity: 0.55,
-  },
-  studiedDayText: {
-    color: '#10B981',
-    fontWeight: '800',
-    opacity: 1,
-  },
-  todayDayText: {
-    color: '#ffffff',
-    fontWeight: '800',
-    opacity: 1,
-  },
-  // Responsive row/grid
-  responsiveSectionRow: {
-    flexDirection: width > 768 ? 'row' : 'column',
-    gap: 20,
-    marginBottom: 20,
-    width: '100%',
-  },
-  calendarColumn: {
-    flex: width > 768 ? 1.2 : 1,
-    width: '100%',
-  },
-  shortcutsColumn: {
-    flex: width > 768 ? 1 : 1,
-    width: '100%',
-  },
-  shortcutsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    width: '100%',
-  },
-  shortcutCard: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: colors.card,
-    borderRadius: 20,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  shortcutGradient: {
-    padding: 16,
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: 12,
-    height: 125,
-    justifyContent: 'space-between',
-  },
-  shortcutHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-  shortcutIconContainer: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  shortcutTextContainer: {
-    width: '100%',
-  },
-  shortcutTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 2,
-  },
-  shortcutDesc: {
-    fontSize: 11,
-    fontWeight: '500',
-    opacity: 0.6,
-  },
-  calendarLegend: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 14,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    gap: 20,
-    width: '100%'
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  legendText: {
-    fontSize: 12,
-    color: colors.subText,
-  },
-  // Exam selector (still used in JSX)
-  examSelectorWrapper: {
-    marginBottom: 24,
-  },
-  examContextText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.subText,
-    marginBottom: 8,
-    marginLeft: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  examSelectorBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.card,
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  examSelectorInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  examText: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  // Premium banner
-  premiumBanner: {
-    marginBottom: 20,
-    borderRadius: 20,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  premiumGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-  },
-  premiumBannerIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
-  premiumBannerTextContainer: {
-    flex: 1,
-  },
-  premiumTextHeader: {
-    fontSize: 16,
-    fontWeight: '800',
-    marginBottom: 2,
-    letterSpacing: -0.3,
-  },
-  premiumTextSub: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  premiumArrowBox: {
-    borderRadius: 12,
-    padding: 6,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.text,
-    marginBottom: 14,
-    letterSpacing: -0.3,
-  },
-  quizModesContainer: {
-    marginBottom: 20,
-  },
-  quizModeCard: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
-  quizModeContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-  },
-  quizModeIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  quizModeText: {
-    flex: 1,
-  },
-  quizModeTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  quizModeSubtitle: {
-    fontSize: 13,
-    color: colors.subText,
-  },
-  premiumBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 20,
-    gap: 4,
-  },
-  premiumBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#F59E0B',
-  },
+// ─── STYLES ─────────────────────────────────────────────────────────────────
+const createStyles = (colors: any, isDark: boolean) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.gradientStart },
+    scrollView: { flex: 1 },
 
-  notificationBadge: {
-    position: 'absolute',
-    top: 6,
-    right: 8,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#EF4444',
-    borderWidth: 2,
-    borderColor: colors.background,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    height: '75%',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    paddingBottom: 40,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  closeModalButton: {
-    padding: 4,
-    borderRadius: 20,
-    backgroundColor: 'rgba(128,128,128,0.1)',
-  },
-  notificationsList: {
-    paddingBottom: 20,
-  },
-  emptyNotificationsText: {
-    textAlign: 'center',
-    marginTop: 40,
-    fontSize: 16,
-  },
-  notificationCard: {
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-  },
-  notificationHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 6,
-  },
-  notificationTitle: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '700',
-    marginRight: 8,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#EF4444',
-    marginTop: 6,
-  },
-  notificationMessage: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 8,
-  },
-  notificationDate: {
-    fontSize: 12,
-  },
-});
-function SpinnerAnimation({ color = '#8A2BE2' }: { color?: string }) {
-  const rotation = useSharedValue(0);
-  React.useEffect(() => {
-    rotation.value = withRepeat(
-      withTiming(360, { duration: 1200, easing: Easing.linear }),
-      -1,
-      false
-    );
-  }, []);
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${rotation.value}deg` }],
-  }));
-  return (
-    <Animated.View style={[{ width: 64, height: 64, marginBottom: 16 }, animatedStyle]}>
-      <Svg width={64} height={64} viewBox="0 0 64 64">
-        <Circle
-          cx={32}
-          cy={32}
-          r={28}
-          stroke={color}
-          strokeWidth={6}
-          strokeDasharray={"44 88"}
-          fill="none"
-        />
-      </Svg>
-    </Animated.View>
-  );
-}
+    // Top Navigation
+    topNav: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 100,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    topNavContent: {
+      height: 48,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+    },
+    logoText: {
+      fontSize: 22,
+      fontWeight: '900',
+      letterSpacing: -1,
+    },
+    navLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    avatarWrapper: {
+      position: 'relative',
+    },
+    userAvatar: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      borderWidth: 2,
+      borderColor: colors.border,
+    },
+    userAvatarPro: {
+      borderWidth: 2,
+      borderColor: '#8B5CF6',
+    },
+    proCrownBadge: {
+      position: 'absolute',
+      bottom: -2,
+      right: -2,
+      width: 16,
+      height: 16,
+      borderRadius: 8,
+      backgroundColor: '#8B5CF6',
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderColor: colors.card,
+    },
+    userAvatarPlaceholder: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    userAvatarText: {
+      color: '#fff',
+      fontSize: 16,
+      fontWeight: 'bold',
+    },
+    navActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    streakPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.inputBg,
+      borderRadius: 20,
+      paddingRight: 12,
+      paddingLeft: 6,
+      height: 34,
+      borderWidth: 1,
+      borderColor: 'rgba(245,158,11,0.3)',
+    },
+    streakAnim: { width: 26, height: 26, marginRight: 2 },
+    streakCount: { fontSize: 14, fontWeight: '800' },
+    bellBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.inputBg,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    notificationBadge: {
+      position: 'absolute',
+      top: 6,
+      right: 6,
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: '#EF4444',
+      borderWidth: 1.5,
+      borderColor: colors.card,
+    },
+
+    // Hero Section
+    heroSection: {
+      marginTop: 16,
+      marginBottom: 20,
+    },
+    heroLeft: {
+      marginBottom: 4,
+    },
+    heroGreeting: {
+      fontSize: 13,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 2,
+      color: '#10B981', // Emerald color instead of primary
+      marginBottom: 6,
+    },
+    heroName: {
+      fontSize: 36,
+      fontWeight: '900',
+      letterSpacing: -1.5,
+      color: colors.text,
+      marginBottom: 10,
+    },
+    examBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#0EA5E9' + '15', // Sky Blue
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 12,
+      alignSelf: 'flex-start',
+      gap: 6,
+      borderWidth: 1,
+      borderColor: '#0EA5E9' + '30',
+    },
+    examBadgeText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#0EA5E9',
+    },
+
+    // Quote Card (Minimalist)
+    quoteWrapper: {
+      marginTop: 20,
+      marginBottom: 32,
+      paddingHorizontal: 8,
+    },
+    minimalQuoteContainer: {
+      flexDirection: 'column',
+    },
+    minimalQuoteContentRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+    },
+    minimalQuoteIcon: {
+      marginRight: 12,
+      marginTop: -2,
+    },
+    minimalQuoteTextContainer: {
+      flex: 1,
+    },
+    minimalQuoteText: {
+      fontSize: 18,
+      fontWeight: '500',
+      fontStyle: 'italic',
+      color: colors.text,
+      lineHeight: 26,
+      marginBottom: 10,
+    },
+    minimalQuoteAuthor: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.subText,
+    },
+
+    // Section Header
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 16,
+      gap: 10,
+    },
+    sectionTitle: {
+      fontSize: 20,
+      fontWeight: '800',
+      letterSpacing: -0.5,
+      color: colors.text,
+    },
+    sectionAccent: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: colors.primary,
+    },
+
+    // Progress Card
+    progressCard: {
+      marginBottom: 24,
+      borderRadius: 24,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    progressCardInner: {
+      padding: 20,
+    },
+    progressHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    progressTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    progressIconContainer: {
+      width: 62,
+      height: 62,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    progressLottieAnim: {
+      width: 100,
+      height: 100,
+    },
+    progressTitleText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    progressSubtitleText: {
+      fontSize: 11,
+      fontWeight: '500',
+      color: colors.primary,
+    },
+    progressPercentText: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: colors.primary,
+    },
+    progressStatsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      paddingVertical: 14,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    statItem: {
+      alignItems: 'center',
+    },
+    statValue: {
+      fontSize: 22,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    statLabel: {
+      fontSize: 11,
+      fontWeight: '500',
+      color: colors.subText,
+      marginTop: 2,
+    },
+    statDivider: {
+      width: 1,
+      height: '100%',
+      backgroundColor: colors.border,
+    },
+    upgradeBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(245,158,11,0.1)',
+      paddingVertical: 12,
+      borderRadius: 12,
+      marginTop: 12,
+      gap: 8,
+      borderWidth: 1,
+      borderColor: 'rgba(245,158,11,0.2)',
+    },
+    upgradeBannerText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: '#F59E0B',
+    },
+
+    // Premium CTA
+    premiumCtaCard: {
+      marginBottom: 24,
+      borderRadius: 20,
+      overflow: 'hidden',
+    },
+    premiumCtaInner: {
+      padding: 18,
+    },
+    premiumCtaContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    premiumCtaIcon: {
+      width: 56,
+      height: 56,
+      borderRadius: 16,
+      backgroundColor: 'rgba(245,158,11,0.15)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 14,
+    },
+    premiumCtaText: {
+      flex: 1,
+    },
+    premiumCtaTitle: {
+      fontSize: 17,
+      fontWeight: '800',
+      color: colors.text,
+      marginBottom: 2,
+    },
+    premiumCtaSubtitle: {
+      fontSize: 12,
+      fontWeight: '500',
+      color: colors.subText,
+    },
+    premiumCtaArrow: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: 'rgba(245,158,11,0.15)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+
+    // Tools Grid
+    toolsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      rowGap: 12,
+      marginBottom: 28,
+    },
+    toolCardWrapper: {
+      width: '48.5%',
+    },
+    toolCard: {
+      borderRadius: 20,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      overflow: 'hidden',
+    },
+    toolCardInner: {
+      padding: 16,
+      minHeight: 110,
+    },
+    toolHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 12,
+    },
+    toolIconBg: {
+      width: 38,
+      height: 38,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    liveBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(16,185,129,0.15)',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 8,
+      gap: 4,
+    },
+    liveText: {
+      fontSize: 9,
+      fontWeight: '800',
+      color: '#10B981',
+    },
+    newBadge: {
+      backgroundColor: 'rgba(245,158,11,0.15)',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 8,
+    },
+    newText: {
+      fontSize: 9,
+      fontWeight: '800',
+      color: '#F59E0B',
+    },
+    proBadge: {
+      backgroundColor: 'rgba(139,92,246,0.15)',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 8,
+    },
+    proText: {
+      fontSize: 9,
+      fontWeight: '800',
+      color: '#8B5CF6',
+    },
+    toolTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 2,
+    },
+    toolDesc: {
+      fontSize: 11,
+      fontWeight: '500',
+      color: colors.subText,
+    },
+
+    // Quiz Modes
+    quizModesSection: {
+      marginBottom: 30,
+    },
+    quizModeCard: {
+      marginBottom: 12,
+      borderRadius: 20,
+      borderWidth: 1,
+      overflow: 'hidden',
+    },
+    quizModeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 16,
+    },
+    quizModeIconContainer: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 16,
+    },
+    quizModeInfo: {
+      flex: 1,
+    },
+    quizModeTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    quizModeSubtitle: {
+      fontSize: 13,
+      fontWeight: '400',
+      color: colors.subText,
+    },
+    premiumBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 10,
+      gap: 4,
+    },
+    premiumLocked: {
+      backgroundColor: 'rgba(245,158,11,0.1)',
+    },
+    premiumUnlocked: {
+      backgroundColor: 'rgba(16,185,129,0.1)',
+    },
+    premiumLockedText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: '#F59E0B',
+    },
+    premiumUnlockedText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: '#10B981',
+    },
+
+    // Loading
+    loadingContainer: {
+      paddingVertical: 10,
+    },
+
+    // Modal
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      height: '80%',
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      padding: 24,
+      paddingBottom: 40,
+      borderWidth: 1,
+      borderBottomWidth: 0,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 24,
+    },
+    modalTitle: {
+      fontSize: 22,
+      fontWeight: '800',
+    },
+    modalCloseBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.inputBg,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    notificationsList: {
+      paddingBottom: 20,
+    },
+    emptyState: {
+      alignItems: 'center',
+      paddingTop: 60,
+      gap: 12,
+    },
+    emptyText: {
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    notificationCard: {
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 12,
+      borderWidth: 1,
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 12,
+    },
+    unreadIndicator: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.primary,
+      marginTop: 6,
+    },
+    notificationTitleText: {
+      flex: 1,
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    notificationMessageText: {
+      fontSize: 13,
+      color: colors.subText,
+      marginTop: 4,
+      lineHeight: 18,
+    },
+    notificationTimeText: {
+      fontSize: 11,
+      color: colors.subText,
+      marginTop: 6,
+    },
+
+    // Floating Action Button (FAB)
+    fabContainer: {
+      position: 'absolute',
+      alignSelf: 'center',
+      zIndex: 1000,
+    },
+    fabTouchable: {
+      borderRadius: 24,
+      overflow: 'hidden',
+      borderWidth: 1.2,
+      borderColor: 'rgba(255, 255, 255, 0.25)',
+    },
+    fabGradient: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 9,
+      borderRadius: 22,
+      overflow: 'hidden',
+    },
+    fabGlossOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    },
+    fabContentRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      zIndex: 2,
+    },
+    fabText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '800',
+      letterSpacing: 0.2,
+      textShadowColor: 'rgba(0, 0, 0, 0.15)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 2,
+    },
+    fabLottie: {
+      width: 34,
+      height: 24,
+      marginRight: -1,
+      marginLeft: -2,
+    },
+    fabGlow: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      borderRadius: 24,
+      backgroundColor: colors.primary,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.45,
+      shadowRadius: 12,
+      elevation: 10,
+    },
+    fabShine: {
+      position: 'absolute',
+      top: -30,
+      bottom: -30,
+      width: 35,
+      backgroundColor: 'rgba(255, 255, 255, 0.45)',
+      opacity: 0.5,
+      zIndex: 3,
+    },
+  });

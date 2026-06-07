@@ -1224,6 +1224,7 @@ export default function AiMentorScreen() {
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
   const scrollViewRef = useRef<ScrollView>(null);
+  const androidInputRef = useRef<TextInput>(null);
 
   const styles = React.useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
@@ -1299,9 +1300,14 @@ export default function AiMentorScreen() {
         easing: Easing.out(Easing.cubic),
       });
     });
+    // Focus AFTER listeners are registered to avoid missing the first keyboardDidShow
+    const focusTimer = setTimeout(() => {
+      androidInputRef.current?.focus();
+    }, 150);
     return () => {
       showSub.remove();
       hideSub.remove();
+      clearTimeout(focusTimer);
     };
   }, []);
 
@@ -2287,7 +2293,7 @@ export default function AiMentorScreen() {
               <TouchableOpacity style={styles.inputPlusBtn} onPress={() => setShowAttachModal(true)}>
                 <Plus size={22} color={colors.subText} strokeWidth={2} />
               </TouchableOpacity>
-              <TextInput style={styles.textInput} placeholder="Ask AI Mentor" placeholderTextColor={colors.subText} value={inputText} onChangeText={setInputText} multiline={false} autoFocus={true} onSubmitEditing={handleSend} returnKeyType="send" />
+              <TextInput ref={androidInputRef} style={styles.textInput} placeholder="Ask AI Mentor" placeholderTextColor={colors.subText} value={inputText} onChangeText={setInputText} multiline={false} onSubmitEditing={handleSend} returnKeyType="send" />
               {(inputText.trim().length > 0 || allUploaded) ? (
                 <TouchableOpacity
                   style={[styles.sendIconBtn, isUploading && { opacity: 0.4 }]}
